@@ -1,0 +1,4 @@
+defaults: &base
+  enabled: true
+  limit: 16
+active: *base

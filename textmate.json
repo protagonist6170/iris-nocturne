@@ -1,0 +1,688 @@
+[
+  {
+    "name": "Comments",
+    "scopes": [
+      "comment",
+      "punctuation.definition.comment"
+    ],
+    "role": "comment",
+    "style": "italic"
+  },
+  {
+    "name": "Documentation",
+    "scopes": [
+      "comment.block.documentation",
+      "comment.line.documentation"
+    ],
+    "role": "comment",
+    "style": "italic"
+  },
+  {
+    "name": "Keywords",
+    "scopes": [
+      "keyword",
+      "storage.type",
+      "storage.modifier"
+    ],
+    "role": "keyword",
+    "style": ""
+  },
+  {
+    "name": "Word operators",
+    "scopes": [
+      "keyword.operator",
+      "keyword.operator.word",
+      "keyword.operator.new"
+    ],
+    "role": "keyword",
+    "style": ""
+  },
+  {
+    "name": "Symbol operators",
+    "scopes": [
+      "keyword.operator.assignment",
+      "keyword.operator.arithmetic",
+      "keyword.operator.comparison",
+      "keyword.operator.relational",
+      "keyword.operator.bitwise",
+      "keyword.operator.logical",
+      "keyword.operator.ternary",
+      "keyword.operator.accessor",
+      "keyword.operator.unpacking",
+      "keyword.operator.range",
+      "keyword.operator.arrow",
+      "punctuation.separator.key-value.toml",
+      "punctuation.separator.key-value",
+      "punctuation.separator.assignment.toml",
+      "punctuation.definition.key-value.toml"
+    ],
+    "role": "operator",
+    "style": ""
+  },
+  {
+    "name": "Python logical operators",
+    "scopes": [
+      "keyword.operator.logical.python",
+      "keyword.operator.word.python"
+    ],
+    "role": "keyword",
+    "style": ""
+  },
+  {
+    "name": "Conditionals",
+    "scopes": [
+      "keyword.control.conditional",
+      "keyword.control.flow.conditional"
+    ],
+    "role": "keyword",
+    "style": "italic"
+  },
+  {
+    "name": "Punctuation",
+    "scopes": [
+      "punctuation"
+    ],
+    "role": "punctuation",
+    "style": ""
+  },
+  {
+    "name": "Strings",
+    "scopes": [
+      "string",
+      "markup.inline.raw",
+      "markup.fenced_code.block",
+      "markup.raw",
+      "markup.raw.inline",
+      "markup.raw.block"
+    ],
+    "role": "string",
+    "style": ""
+  },
+  {
+    "name": "String delimiters",
+    "scopes": [
+      "punctuation.definition.string"
+    ],
+    "role": "string",
+    "style": ""
+  },
+  {
+    "name": "Documentation strings",
+    "scopes": [
+      "string.quoted.docstring",
+      "string.quoted.multi.documentation",
+      "string.quoted.docstring.multi.python",
+      "comment.block.documentation.python",
+      "comment.block.documentation.summary.python"
+    ],
+    "role": "documentation",
+    "style": ""
+  },
+  {
+    "name": "Python string prefixes",
+    "scopes": [
+      "storage.type.string.python"
+    ],
+    "role": "string",
+    "style": ""
+  },
+  {
+    "name": "Interpolated variables",
+    "scopes": [
+      "string variable.other.readwrite",
+      "string.template variable.other.readwrite",
+      "meta.interpolation variable.other.readwrite"
+    ],
+    "role": "variable_reference",
+    "style": ""
+  },
+  {
+    "name": "Interpolation punctuation",
+    "scopes": [
+      "punctuation.section.interpolation",
+      "punctuation.definition.interpolation",
+      "punctuation.definition.template-expression"
+    ],
+    "role": "preprocessor",
+    "style": ""
+  },
+  {
+    "name": "Regular expressions",
+    "scopes": [
+      "string.regexp",
+      "constant.regexp"
+    ],
+    "role": "regexp",
+    "style": ""
+  },
+  {
+    "name": "Regex character classes",
+    "scopes": [
+      "constant.other.character-class.regexp",
+      "constant.character.character-class.regexp",
+      "constant.other.character-class.set.regexp"
+    ],
+    "role": "type_reference",
+    "style": ""
+  },
+  {
+    "name": "Regex anchors",
+    "scopes": [
+      "keyword.control.anchor.regexp",
+      "keyword.operator.negation.regexp"
+    ],
+    "role": "keyword",
+    "style": ""
+  },
+  {
+    "name": "Regex quantifiers",
+    "scopes": [
+      "keyword.operator.quantifier.regexp"
+    ],
+    "role": "number",
+    "style": ""
+  },
+  {
+    "name": "Regex operators",
+    "scopes": [
+      "keyword.operator.or.regexp",
+      "keyword.operator.disjunction.regexp"
+    ],
+    "role": "operator",
+    "style": ""
+  },
+  {
+    "name": "Numbers",
+    "scopes": [
+      "constant.numeric"
+    ],
+    "role": "number",
+    "style": ""
+  },
+  {
+    "name": "Language literals",
+    "scopes": [
+      "constant.language"
+    ],
+    "role": "constant",
+    "style": ""
+  },
+  {
+    "name": "Named constants",
+    "scopes": [
+      "constant.other",
+      "variable.other.constant"
+    ],
+    "role": "member_reference",
+    "style": ""
+  },
+  {
+    "name": "Type references",
+    "scopes": [
+      "entity.name.type",
+      "entity.name.class",
+      "entity.other.inherited-class",
+      "entity.name.impl"
+    ],
+    "role": "type_reference",
+    "style": ""
+  },
+  {
+    "name": "Library types",
+    "scopes": [
+      "support.class"
+    ],
+    "role": "type_reference",
+    "style": ""
+  },
+  {
+    "name": "Primitive types",
+    "scopes": [
+      "support.type",
+      "storage.type.primitive",
+      "storage.type.built-in",
+      "storage.type.numeric",
+      "storage.type.c",
+      "storage.type.rust",
+      "support.type.python"
+    ],
+    "role": "builtin_type",
+    "style": ""
+  },
+  {
+    "name": "Function references",
+    "scopes": [
+      "entity.name.function",
+      "variable.function"
+    ],
+    "role": "function_reference",
+    "style": ""
+  },
+  {
+    "name": "Variables",
+    "scopes": [
+      "variable",
+      "variable.other.readwrite"
+    ],
+    "role": "variable_reference",
+    "style": ""
+  },
+  {
+    "name": "Parameters",
+    "scopes": [
+      "variable.parameter"
+    ],
+    "role": "parameter_reference",
+    "style": ""
+  },
+  {
+    "name": "Fields and properties",
+    "scopes": [
+      "variable.other.property",
+      "variable.other.member",
+      "variable.other.object.property",
+      "support.variable.property",
+      "variable.object.property",
+      "variable.other.constant.property"
+    ],
+    "role": "field_reference",
+    "style": ""
+  },
+  {
+    "name": "Namespaces and modules",
+    "scopes": [
+      "entity.name.namespace",
+      "entity.name.module",
+      "support.module",
+      "support.namespace"
+    ],
+    "role": "namespace_reference",
+    "style": ""
+  },
+  {
+    "name": "Library functions",
+    "scopes": [
+      "support.function"
+    ],
+    "role": "function_reference",
+    "style": ""
+  },
+  {
+    "name": "Library values",
+    "scopes": [
+      "support.variable"
+    ],
+    "role": "variable_reference",
+    "style": ""
+  },
+  {
+    "name": "Builtin variables",
+    "scopes": [
+      "variable.language",
+      "support.variable.language",
+      "variable.parameter.function.language.special.self.python",
+      "variable.parameter.function.language.special.cls.python",
+      "variable.language.this.python",
+      "variable.parameter.python variable.language.this.python"
+    ],
+    "role": "builtin_variable",
+    "style": ""
+  },
+  {
+    "name": "Type declarations",
+    "scopes": [
+      "meta.class entity.name.class",
+      "meta.class entity.name.type",
+      "meta.struct entity.name.type",
+      "meta.enum entity.name.type",
+      "meta.interface entity.name.type",
+      "meta.trait entity.name.type",
+      "entity.name.type.class",
+      "entity.name.type.struct",
+      "entity.name.type.enum",
+      "entity.name.type.trait",
+      "entity.name.type.declaration",
+      "entity.name.type.alias",
+      "entity.name.struct",
+      "entity.name.enum",
+      "entity.name.trait",
+      "entity.name.interface"
+    ],
+    "role": "type_declaration",
+    "style": ""
+  },
+  {
+    "name": "Function declarations",
+    "scopes": [
+      "meta.function.python entity.name.function",
+      "meta.function.rust entity.name.function",
+      "meta.function.definition entity.name.function",
+      "meta.function.declaration entity.name.function",
+      "entity.name.function.definition",
+      "entity.name.function.declaration",
+      "meta.function.c++ entity.name.function",
+      "meta.function.c entity.name.function",
+      "meta.struct entity.name.function",
+      "meta.class entity.name.function"
+    ],
+    "role": "function_reference",
+    "style": ""
+  },
+  {
+    "name": "Constant declarations",
+    "scopes": [
+      "entity.name.constant"
+    ],
+    "role": "member_declaration",
+    "style": ""
+  },
+  {
+    "name": "Value declarations",
+    "scopes": [
+      "entity.name.variable",
+      "variable.other.declaration",
+      "variable.other.definition"
+    ],
+    "role": "variable_reference",
+    "style": ""
+  },
+  {
+    "name": "Function calls",
+    "scopes": [
+      "meta.function-call entity.name.function",
+      "meta.function-call.generic entity.name.function",
+      "meta.function-call variable.function",
+      "meta.function-call.generic variable.function"
+    ],
+    "role": "function_reference",
+    "style": ""
+  },
+  {
+    "name": "Escapes",
+    "scopes": [
+      "constant.character.escape",
+      "constant.other.placeholder",
+      "constant.character.format.placeholder",
+      "constant.character.format.placeholder.other.python"
+    ],
+    "role": "preprocessor",
+    "style": ""
+  },
+  {
+    "name": "Preprocessor",
+    "scopes": [
+      "keyword.control.directive",
+      "entity.name.function.preprocessor",
+      "punctuation.definition.directive",
+      "support.macro",
+      "entity.name.function.macro",
+      "entity.name.macro",
+      "variable.function.macro"
+    ],
+    "role": "preprocessor",
+    "style": ""
+  },
+  {
+    "name": "Decorators and attributes",
+    "scopes": [
+      "entity.name.function.decorator",
+      "support.type.decorator",
+      "support.function.decorator",
+      "variable.annotation",
+      "punctuation.definition.decorator",
+      "meta.decorator entity.name.function",
+      "meta.decorator variable.function"
+    ],
+    "role": "decorator",
+    "style": ""
+  },
+  {
+    "name": "Tag attributes",
+    "scopes": [
+      "entity.other.attribute-name"
+    ],
+    "role": "namespace_reference",
+    "style": ""
+  },
+  {
+    "name": "Tag delimiters",
+    "scopes": [
+      "punctuation.definition.tag"
+    ],
+    "role": "operator",
+    "style": ""
+  },
+  {
+    "name": "Tags",
+    "scopes": [
+      "entity.name.tag"
+    ],
+    "role": "type_reference",
+    "style": ""
+  },
+  {
+    "name": "Configuration keys",
+    "scopes": [
+      "support.type.property-name.json",
+      "string.json support.type.property-name",
+      "entity.name.tag.yaml",
+      "support.type.property-name.toml",
+      "meta.key.toml",
+      "keyword.key.toml",
+      "entity.name.tag.toml",
+      "variable.other.key.toml",
+      "meta.mapping.key.json string",
+      "meta.mapping.key.json string.quoted.double",
+      "meta.mapping.key.toml variable"
+    ],
+    "role": "field_reference",
+    "style": ""
+  },
+  {
+    "name": "Configuration sections",
+    "scopes": [
+      "entity.name.section.toml",
+      "entity.name.section.group-title.toml",
+      "entity.name.section.array.toml",
+      "entity.name.section.toml variable",
+      "entity.name.section.toml string",
+      "entity.name.table.toml",
+      "entity.name.table",
+      "entity.other.attribute-name.table",
+      "entity.name.section.toml entity.name",
+      "entity.name.section.toml variable.other",
+      "entity.name.section.toml string.unquoted"
+    ],
+    "role": "namespace_reference",
+    "style": ""
+  },
+  {
+    "name": "Configuration anchors",
+    "scopes": [
+      "entity.name.type.anchor.yaml",
+      "variable.other.alias.yaml",
+      "variable.other.anchor.yaml",
+      "punctuation.definition.anchor.yaml",
+      "punctuation.definition.alias.yaml",
+      "entity.name.other.anchor.yaml"
+    ],
+    "role": "namespace_reference",
+    "style": ""
+  },
+  {
+    "name": "Configuration dates",
+    "scopes": [
+      "constant.other.date",
+      "constant.other.datetime",
+      "constant.other.timestamp"
+    ],
+    "role": "number",
+    "style": ""
+  },
+  {
+    "name": "Headings",
+    "scopes": [
+      "markup.heading",
+      "entity.name.section"
+    ],
+    "role": "type",
+    "style": "bold"
+  },
+  {
+    "name": "Markdown bold",
+    "scopes": [
+      "markup.bold"
+    ],
+    "role": "foreground",
+    "style": "bold"
+  },
+  {
+    "name": "Markdown italic",
+    "scopes": [
+      "markup.italic"
+    ],
+    "role": "foreground",
+    "style": "italic"
+  },
+  {
+    "name": "Markdown strikethrough",
+    "scopes": [
+      "markup.strikethrough"
+    ],
+    "role": "foreground",
+    "style": "strikethrough"
+  },
+  {
+    "name": "Markdown underline",
+    "scopes": [
+      "markup.underline"
+    ],
+    "role": "foreground",
+    "style": "underline"
+  },
+  {
+    "name": "Markdown quotes",
+    "scopes": [
+      "markup.quote",
+      "punctuation.definition.blockquote"
+    ],
+    "role": "parameter_reference",
+    "style": ""
+  },
+  {
+    "name": "Markdown lists",
+    "scopes": [
+      "punctuation.definition.list",
+      "markup.list"
+    ],
+    "role": "operator",
+    "style": ""
+  },
+  {
+    "name": "Markdown checked items",
+    "scopes": [
+      "markup.list.checked",
+      "markup.task.checked"
+    ],
+    "role": "added",
+    "style": ""
+  },
+  {
+    "name": "Markdown unchecked items",
+    "scopes": [
+      "markup.list.unchecked",
+      "markup.task.unchecked"
+    ],
+    "role": "punctuation",
+    "style": ""
+  },
+  {
+    "name": "Markup math",
+    "scopes": [
+      "markup.math",
+      "meta.embedded.math",
+      "string.other.math"
+    ],
+    "role": "type_reference",
+    "style": ""
+  },
+  {
+    "name": "Links",
+    "scopes": [
+      "markup.underline.link",
+      "string.other.link"
+    ],
+    "role": "member",
+    "style": "underline"
+  },
+  {
+    "name": "Inserted",
+    "scopes": [
+      "markup.inserted"
+    ],
+    "role": "added",
+    "style": ""
+  },
+  {
+    "name": "Deleted",
+    "scopes": [
+      "markup.deleted"
+    ],
+    "role": "deleted",
+    "style": ""
+  },
+  {
+    "name": "Changed",
+    "scopes": [
+      "markup.changed"
+    ],
+    "role": "changed",
+    "style": ""
+  },
+  {
+    "name": "Invalid",
+    "scopes": [
+      "invalid"
+    ],
+    "role": "error",
+    "style": "underline"
+  },
+  {
+    "name": "Documentation tags",
+    "scopes": [
+      "storage.type.class.jsdoc",
+      "entity.name.tag.documentation",
+      "keyword.other.documentation",
+      "keyword.other.unit"
+    ],
+    "role": "keyword",
+    "style": ""
+  },
+  {
+    "name": "Comment todo",
+    "scopes": [
+      "keyword.other.todo",
+      "comment keyword.other.todo"
+    ],
+    "role": "warning",
+    "style": "bold"
+  },
+  {
+    "name": "Comment warning",
+    "scopes": [
+      "comment.warning",
+      "comment.error"
+    ],
+    "role": "error",
+    "style": "bold"
+  },
+  {
+    "name": "Comment note",
+    "scopes": [
+      "comment.note",
+      "comment.hint"
+    ],
+    "role": "info",
+    "style": ""
+  }
+]
