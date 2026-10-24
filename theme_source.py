@@ -19,13 +19,109 @@ def _is_icon_glyph(value: object) -> bool:
     )
 
 
-def load_lsd_icons() -> dict[str, dict[str, str]]:
-    """Load pinned lsd fallback keys and approved Yazi glyph overrides."""
+class FileIcon(TypedDict):
+    """A resolved glyph and color, matched by name or Yazi URL glob."""
+
+    name: str
+    text: str
+    fg: str
+
+
+def _file_icon(name: object, text: object, color: object) -> FileIcon:
+    """Validate a named glyph before it reaches either native renderer."""
+    if (
+        not isinstance(name, str)
+        or not name
+        or not name.isprintable()
+        or not isinstance(text, str)
+        or not _is_icon_glyph(text)
+        or not isinstance(color, str)
+        or not re.fullmatch(r"#[0-9a-fA-F]{6}", color)
+    ):
+        raise ValueError(
+            "file icons require a name, single glyph and RGB color"
+        )
+    return {"name": name, "text": text, "fg": color}
+
+
+def load_file_icons(colors: dict[str, str]) -> dict[str, list[FileIcon]]:
+    """Apply shared purpose rules over the retained language icon mappings.
+
+    Names are normalized for both consumers. Yazi additionally receives globs;
+    lsd uses the explicitly listed file and directory names instead.
+    """
+    source = tomllib.loads(
+        (THEME_DIR / "assets/yazi-icons.toml").read_text(encoding="utf-8")
+    )
+    icons: dict[str, dict[str, FileIcon]] = {
+        "dirs": {}, "files": {}, "exts": {}, "globs": {},
+    }
+    for category in ("files", "exts"):
+        if not isinstance(source.get(category), list):
+            raise ValueError(f"Yazi icons require a {category} list")
+        for item in source[category]:
+            if not isinstance(item, dict):
+                raise ValueError("file icons require name, text and fg fields")
+            icon = _file_icon(
+                item.get("name"), item.get("text"), item.get("fg")
+            )
+            key = icon["name"].lower()
+            if key in icons[category] and (
+                icons[category][key]["text"] != icon["text"]
+            ):
+                raise ValueError(
+                    f"conflicting case-insensitive icon name: {key}"
+                )
+            icon["name"] = key
+            icons[category][key] = icon
+
+    purposes = tomllib.loads(
+        (THEME_DIR / "assets/purpose-icons.toml").read_text(encoding="utf-8")
+    )
+    overrides: dict[str, dict[str, FileIcon]] = {
+        category: {} for category in icons
+    }
+    for purpose, rule in purposes.items():
+        if (
+            not isinstance(rule, dict)
+            or set(rule) - {"text", "role", *icons}
+            or not _is_icon_glyph(rule.get("text"))
+            or not isinstance(rule.get("role"), str)
+            or rule["role"] not in colors
+        ):
+            raise ValueError(f"invalid purpose icon rule: {purpose}")
+        for category in icons:
+            names = rule.get(category, [])
+            if not isinstance(names, list):
+                raise ValueError(f"{purpose}.{category} must be a list")
+            for name in names:
+                icon = _file_icon(
+                    name, rule.get("text"), colors[rule["role"]]
+                )
+                key = icon["name"].lower()
+                icon["name"] = key
+                previous = overrides[category].get(key)
+                if previous is not None and previous != icon:
+                    raise ValueError(
+                        f"conflicting purpose icon: {category}.{key}"
+                    )
+                overrides[category][key] = icon
+    return {
+        category: list((entries | overrides[category]).values())
+        for category, entries in icons.items()
+    }
+
+
+def load_lsd_icons(
+    file_icons: dict[str, list[FileIcon]],
+) -> dict[str, dict[str, str]]:
+    """Overlay shared glyphs on pinned lsd keys; directory names win ties.
+
+    lsd uses one name table for files and directories, unlike Yazi. A known
+    directory name must retain its purpose glyph even if a file shares it.
+    """
     icons = tomllib.loads(
         (THEME_DIR / "assets/lsd-icons.toml").read_text(encoding="utf-8")
-    )
-    yazi_icons = tomllib.loads(
-        (THEME_DIR / "assets/yazi-icons.toml").read_text(encoding="utf-8")
     )
     if set(icons) != {"name", "extension"}:
         raise ValueError(
@@ -44,47 +140,12 @@ def load_lsd_icons() -> dict[str, dict[str, str]]:
                 raise ValueError(
                     "lsd icons require string keys and single glyphs"
                 )
-    for source, target in (("files", "name"), ("exts", "extension")):
-        if not isinstance(yazi_icons.get(source), list):
-            raise ValueError(f"Yazi icons require a {source} list")
-        seen: dict[str, str] = {}
-        for item in yazi_icons[source]:
-            if (
-                not isinstance(item, dict)
-                or not isinstance(item.get("name"), str)
-                or not item["name"]
-                or not item["name"].isprintable()
-                or not _is_icon_glyph(item.get("text"))
-                or not isinstance(item.get("fg"), str)
-                or not re.fullmatch(r"#[0-9a-fA-F]{6}", item["fg"])
-            ):
-                raise ValueError(
-                    "Yazi icons require a name, single glyph and RGB color"
-                )
-            key = item["name"].lower()
-            if key in seen and seen[key] != item["text"]:
-                raise ValueError(
-                    f"conflicting case-insensitive icon name: {key}"
-                )
-            seen[key] = item["text"]
-            icons[target][key] = item["text"]
-    for name in (
-        ".config",
-        ".git",
-        ".github",
-        ".npm",
-        "desktop",
-        "development",
-        "documents",
-        "downloads",
-        "library",
-        "movies",
-        "music",
-        "pictures",
-        "public",
-        "videos",
+    for source, target in (
+        ("files", "name"), ("exts", "extension"), ("dirs", "name")
     ):
-        icons["name"][name] = "\uea83"
+        icons[target].update(
+            (icon["name"], icon["text"]) for icon in file_icons[source]
+        )
     icons["filetype"] = {
         "dir": "\uea83",
         "file": "\uea7b",

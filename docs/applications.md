@@ -65,17 +65,25 @@ Custom statusline Lua remains in your Yazi config.
 
 ### File icons
 
-Source files use Nerd Font language or framework glyphs. Folders, ordinary files,
-images, and archives use Codicons outline glyphs from the same font. No font
+Ordinary directories keep the Codicons folder glyph in `type` blue (`#9CBFFF`);
+the generic hovered-directory rule uses an open folder. Special directories use
+purpose symbols: code for `src`, a beaker for `tests`, a book for `docs`, a package
+for dependencies, and tools for build outputs. Named directory icons keep their
+purpose symbol when hovered. All glyphs come from the user's Nerd Font; no font
 assets are bundled.
 
-Directory icons use `type` blue (`#9CBFFF`), matching Normal mode. The generic
-hovered-directory rule uses an open folder glyph.
+[`assets/purpose-icons.toml`](../assets/purpose-icons.toml) shares purpose glyphs
+and palette roles with lsd. It also distinguishes README, licenses, dependency
+manifests, lockfiles, Docker, Git, environment, and tool configuration files.
+Yazi-only globs cover families such as `.env.*`, `README.*`, and `Dockerfile.*`.
+Globs precede directory names, file names, extensions, and generic conditions;
+the supplied globs match files only. Names are normalized to lowercase so both
+lowercase and uppercase spellings can use the purpose icons.
 
-[`assets/yazi-icons.toml`](../assets/yazi-icons.toml) pins filename and extension
-mappings from Yazi 26.9.1 while retaining their original icon colors.
-`renderers/yazi.py` maps directory and special-file icons to shared roles. Review
-filename rules when updating extensions: a filename match can take precedence.
+[`assets/yazi-icons.toml`](../assets/yazi-icons.toml) retains base filename and
+extension mappings from Yazi 26.9.1. Purpose rules override those mappings;
+other language and framework glyphs retain their original colors. Layout,
+filename colors, and file-state rules are separate from icon selection.
 
 ### Flavor styles and statusline API
 

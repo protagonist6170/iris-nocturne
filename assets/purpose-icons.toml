@@ -1,0 +1,230 @@
+# Iris Nocturne purpose icons, selected from the B icon study.
+# Each group supplies one Nerd Font glyph and a palette role. Named directories
+# and files are shared by Yazi and lsd; globs are supported only by Yazi.
+# Keep names lowercase: both consumers support case-insensitive name lookup.
+# Prefix file globs with **/ so they match files inside any directory.
+# No SVGs, font assets, or Material Icon Theme resources are bundled.
+
+[source]
+text = ""
+role = "type"
+dirs = ["src", "source", "sources", "include", "api", "development"]
+
+[tests]
+text = ""
+role = "added"
+dirs = ["test", "tests", "__tests__", "spec", "specs"]
+
+[documentation]
+text = ""
+role = "warning"
+dirs = ["doc", "docs", "documents", "rubydoc"]
+files = [
+  "readme", "readme.md", "readme.txt", "readme.rst", "readme.markdown",
+  "contributing", "contributing.md", "contributing.rst", "authors",
+  "authors.txt", "maintainers",
+]
+globs = ["**/readme.*", "**/contributing.*"]
+
+[assets]
+text = ""
+role = "hint"
+dirs = [
+  "assets", "images", "img", "pictures", "icons", ".icons", "static",
+  "public", "media", "favicons",
+]
+
+[scripts]
+text = ""
+role = "keyword"
+dirs = ["scripts", "bin", "sbin", "libexec"]
+
+[configuration]
+text = ""
+role = "muted"
+dirs = [
+  "config", "configs", ".config", "conf.d", "etc", ".vscode", ".idea", "nvim",
+  ".vim", ".emacs.d",
+]
+files = [
+  "config", ".editorconfig", ".clang-format", ".clang-tidy", ".prettierrc",
+  ".prettierrc.json", ".prettierrc.json5", ".prettierrc.yaml",
+  ".prettierrc.yml", ".prettierrc.toml", ".prettierignore",
+  "prettier.config.js", "prettier.config.cjs", "prettier.config.mjs",
+  "prettier.config.ts", ".eslintrc", ".eslintrc.json", ".eslintrc.js",
+  ".eslintrc.yml", ".eslintignore", "eslint.config.js", "eslint.config.cjs",
+  "eslint.config.mjs", "eslint.config.ts", ".pylintrc", ".codespellrc",
+  "ruff.toml", ".ruff.toml", "mypy.ini", ".mypy.ini", "pytest.ini", "tox.ini",
+  "setup.cfg", "rustfmt.toml", ".rustfmt.toml", "tsconfig.json",
+  "jsconfig.json", "vite.config.js", "vite.config.ts", "vite.config.mjs",
+  "vite.config.mts", "vitest.config.js", "vitest.config.ts",
+  "vitest.config.mjs", "vitest.config.mts", "playwright.config.js",
+  "playwright.config.ts", "tailwind.config.js", "tailwind.config.ts",
+  "next.config.js", "next.config.mjs", "next.config.ts",
+]
+exts = ["ini", "cfg", "conf"]
+
+[structured_data]
+text = ""
+role = "muted"
+exts = ["toml", "yaml", "yml", "json", "jsonc"]
+
+[data]
+text = ""
+role = "hint"
+dirs = ["data", "dataset", "datasets", "database", "databases"]
+exts = ["db", "sqlite", "sqlite3", "sql", "parquet", "arrow"]
+
+[checkpoints]
+text = ""
+role = "keyword"
+dirs = ["checkpoint", "checkpoints", "weights"]
+exts = ["ckpt", "safetensors", "onnx"]
+
+[notebooks]
+text = ""
+role = "warning"
+dirs = ["notebook", "notebooks"]
+
+[build]
+text = ""
+role = "warning"
+dirs = ["build", "dist", "out", "target", "obj"]
+files = [
+  "build", "makefile", "gnumakefile", "makefile.ac", "cmakelists.txt",
+  "cmakepresets.json", "cmakeuserpresets.json", "build.ninja", "meson.build",
+  "justfile", ".justfile", "taskfile.yml", "taskfile.yaml", "build.gradle",
+  "build.gradle.kts", "settings.gradle", "gradlew", "gradlew.bat",
+]
+
+[cache]
+text = ""
+role = "muted"
+dirs = [
+  "cache", ".cache", "__pycache__", ".pytest_cache", ".mypy_cache",
+  ".ruff_cache", ".ccls-cache",
+]
+
+[dependencies]
+text = ""
+role = "muted"
+dirs = [
+  "node_modules", "vendor", "venv", ".venv", ".tox", ".npm", ".cargo",
+  ".rustup", "lib", "lib32", "lib64", "library",
+]
+
+[packages]
+text = ""
+role = "preprocessor"
+files = [
+  "package.json", "pnpm-workspace.yaml", "cargo.toml", "go.mod", "go.work",
+  "requirements.txt", "requirements-dev.txt", "requirements-test.txt",
+  "pipfile", "gemfile", "composer.json", "pom.xml", "setup.py",
+]
+
+[python]
+text = ""
+role = "warning"
+files = ["pyproject.toml"]
+
+[locks]
+text = ""
+role = "keyword"
+files = [
+  "pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock",
+  "bun.lock", "bun.lockb", "uv.lock", "poetry.lock", "pipfile.lock",
+  "cargo.lock", "composer.lock", "gemfile.lock", "go.sum", "mix.lock",
+]
+exts = ["lock"]
+
+[git]
+text = ""
+role = "preprocessor"
+dirs = [".git"]
+files = [
+  ".gitignore", ".gitattributes", ".gitmodules", ".gitconfig",
+  ".git-blame-ignore-revs", ".mailmap", "gitignore_global", "commit_editmsg",
+]
+
+[github]
+text = ""
+role = "keyword"
+dirs = [".github"]
+
+[automation]
+text = ""
+role = "keyword"
+dirs = ["workflows", ".gitlab", ".circleci"]
+files = [".gitlab-ci.yml", "jenkinsfile", ".pre-commit-config.yaml"]
+
+[docker]
+text = ""
+role = "type"
+files = [
+  "dockerfile", "containerfile", ".dockerignore", "docker-compose.yml",
+  "docker-compose.yaml", "compose.yml", "compose.yaml",
+]
+globs = [
+  "**/dockerfile.*", "**/containerfile.*", "**/compose.*.yaml",
+  "**/compose.*.yml", "**/docker-compose.*.yaml", "**/docker-compose.*.yml",
+]
+
+[environment]
+text = ""
+role = "hint"
+files = [
+  ".env", ".env.local", ".env.development", ".env.development.local",
+  ".env.production", ".env.production.local", ".env.test", ".env.test.local",
+  ".env.staging", ".env.example", ".env.sample", ".env.template", ".envrc",
+]
+exts = ["env"]
+globs = ["**/.env.*"]
+
+[history]
+text = ""
+role = "hint"
+files = [
+  "changelog", "changelog.md", "changelog.txt", "changelog.rst", "changes",
+  "changes.md", "history", "history.md",
+]
+globs = ["**/changelog.*"]
+exts = ["log"]
+
+[license]
+text = ""
+role = "keyword"
+dirs = ["licenses"]
+files = [
+  "license", "license.md", "license.txt", "licence", "licence.md",
+  "licence.txt", "copying", "copying.lesser", "unlicense", "copyright",
+  "security", "security.md", "code_of_conduct", "code_of_conduct.md",
+]
+globs = ["**/license.*", "**/licence.*", "**/copying.*"]
+
+[shell]
+text = ""
+role = "keyword"
+files = [
+  ".bashrc", ".bash_profile", ".bash_logout", ".zshrc", ".zshenv",
+  ".zprofile", ".zlogin", ".zlogout", ".profile",
+]
+
+[downloads]
+text = ""
+role = "type"
+dirs = ["downloads"]
+
+[desktop]
+text = ""
+role = "type"
+dirs = ["desktop"]
+
+[video]
+text = ""
+role = "warning"
+dirs = ["movies", "videos"]
+
+[music]
+text = ""
+role = "warning"
+dirs = ["music"]

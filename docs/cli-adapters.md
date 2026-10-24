@@ -68,14 +68,26 @@ file-type coverage differs.
 
 ### Icon mapping and consumer limits
 
-lsd reuses glyphs from `assets/yazi-icons.toml`. `assets/lsd-icons.toml` explicitly
-covers all built-in filename and extension keys in lsd 1.2.0; review new keys when
-upgrading. Equivalent case-insensitive glyph mappings are merged, while conflicts
-fail generation. Named directories use the Codicons folder glyph.
+Yazi and lsd share base language glyphs from `assets/yazi-icons.toml` and purpose
+rules from `assets/purpose-icons.toml`. Ordinary directories retain a folder;
+special directories use code, test, documentation, package, tools, and other
+purpose symbols. README, licenses, manifests, lockfiles, Docker, Git, environment,
+and tool configuration files also have purpose icons. Add or adjust named rules
+in the shared purpose table to update both consumers.
+
+`assets/lsd-icons.toml` covers all built-in filename and extension keys in lsd
+1.2.0 before the shared overrides; review new keys when upgrading. Equivalent
+case-insensitive glyph mappings are merged, while conflicts fail generation.
+lsd looks up exact names before extensions and type fallbacks. It uses one name
+table for both files and directories, so a known directory name takes its
+directory purpose icon even if a regular file shares that name. Yazi keeps the
+two tables separate. Yazi-only globs are omitted from lsd; common environment,
+README, and Docker spellings are listed explicitly for lsd instead.
 
 lsd colors the icon and filename together: a script can keep its language glyph
-while taking the executable color. Yazi supports separate icon colors. lsd has
-no hovered-folder state; both integrations use your installed Nerd Font.
+while taking the executable color. Yazi supports separate icon colors, using
+palette roles for purpose icons and retained colors for other language glyphs.
+lsd has no hovered-folder state; both integrations use your installed Nerd Font.
 
 The pinned interfaces are documented in lsd's [theme guide](https://github.com/lsd-rs/lsd/blob/v1.2.0/README.md#color-theme),
 [icon implementation](https://github.com/lsd-rs/lsd/blob/v1.2.0/src/icon.rs), and

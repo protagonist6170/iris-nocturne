@@ -1,11 +1,14 @@
 """Render the yazi theme format from shared colors."""
 
 
-import pathlib
-import tomllib
+import json
+
+import theme_source
 
 
-def yazi_flavor(colors: dict[str, str]) -> str:
+def yazi_flavor(
+    colors: dict[str, str], icons: dict[str, list[theme_source.FileIcon]]
+) -> str:
     """Build a local flavor for Yazi 26.9 and its TextMate code preview."""
     c = colors
 
@@ -136,7 +139,8 @@ def yazi_flavor(colors: dict[str, str]) -> str:
     }
     lines = [
         "# Iris Nocturne dark flavor. Generated from palette.json.",
-        "# Matchers: Catppuccin; file icons: Yazi 26.9.1 (MIT).",
+        "# Matchers: Catppuccin; base icons: Yazi 26.9.1 (MIT).",
+        "# Purpose icons: assets/purpose-icons.toml; glyphs require Nerd Font.",
         "#:schema https://yazi-rs.github.io/schemas/theme.json",
     ]
     for section, values in sections.items():
@@ -163,36 +167,16 @@ def yazi_flavor(colors: dict[str, str]) -> str:
             "]",
             "",
             "[icon]",
-            "dirs = [",
         ]
     )
-    for name, text, role in [
-        (".config", "", "type"),
-        (".git", "", "type"),
-        (".github", "", "type"),
-        (".npm", "", "type"),
-        ("Desktop", "", "type"),
-        ("Development", "", "type"),
-        ("Documents", "", "type"),
-        ("Downloads", "", "type"),
-        ("Library", "", "type"),
-        ("Movies", "", "type"),
-        ("Music", "", "type"),
-        ("Pictures", "", "type"),
-        ("Public", "", "type"),
-        ("Videos", "", "type"),
-    ]:
-        lines.append(
-            f'  {{ name = "{name}", text = "{text}", fg = "{c[role]}" }},'
-        )
-    lines.append("]")
-    icon_path = pathlib.Path(__file__).resolve().parents[1] / "assets/yazi-icons.toml"
-    icons = tomllib.loads(icon_path.read_text(encoding="utf-8"))
-    for category in ("files", "exts"):
+    for category in ("globs", "dirs", "files", "exts"):
         lines.append(f"{category} = [")
         for icon in icons[category]:
+            key = "url" if category == "globs" else "name"
+            name = json.dumps(icon["name"], ensure_ascii=False)
+            text = json.dumps(icon["text"], ensure_ascii=False)
             lines.append(
-                f'  {{ name = "{icon["name"]}", text = "{icon["text"]}", '
+                f'  {{ {key} = {name}, text = {text}, '
                 f'fg = "{icon["fg"]}" }},'
             )
         lines.append("]")

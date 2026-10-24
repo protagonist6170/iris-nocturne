@@ -59,6 +59,12 @@ affect the result in each application.
 The optional [Neon Noir gradient background](assets/ghostty/README.md) for Ghostty
 is a static asset, separate from the export.
 
+Yazi and lsd share [purpose icons](assets/purpose-icons.toml) for special
+directories and project files. Ordinary directories keep a folder glyph;
+source files retain their language icons. See the
+[icon guide](docs/cli-adapters.md#icon-mapping-and-consumer-limits) for consumer
+differences and how to extend the mappings.
+
 ## Documentation
 
 - [Application setup](docs/applications.md): installation, theme selection, and

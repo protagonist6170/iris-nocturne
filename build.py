@@ -69,13 +69,14 @@ def generate(source_home: pathlib.Path | None = None) -> dict[str, bytes]:
     All TOML is validated before any caller writes the returned resources.
     """
     palette, rules = theme_source.load_dark_theme()
-    icons = theme_source.load_lsd_icons()
     # Keep terminal surfaces out of editor exports unless explicitly shared.
     colors = {
         role: color
         for role, color in palette["colors"].items()
         if not role.startswith("terminal_")
     }
+    file_icons = theme_source.load_file_icons(colors)
+    icons = theme_source.load_lsd_icons(file_icons)
     ansi = palette["ansi"]
     xml = textmate.textmate_theme(colors, rules)
     text_outputs = {
@@ -95,7 +96,7 @@ def generate(source_home: pathlib.Path | None = None) -> dict[str, bytes]:
             ansi,
         ),
         ".config/yazi/flavors/iris-nocturne.yazi/flavor.toml": (
-            yazi.yazi_flavor(colors)
+            yazi.yazi_flavor(colors, file_icons)
         ),
         ".config/btop/themes/iris-nocturne.theme": btop.btop_theme(colors),
         ".config/git/themes/iris-nocturne.gitconfig": delta.delta_feature(
