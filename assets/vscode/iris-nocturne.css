@@ -1,0 +1,155 @@
+/* Iris Nocturne, Direction D. Managed by the Iris extension alongside the native theme.
+ * Validated: macOS VS Code Stable 1.143.1. No layout, font or icon overrides.
+ * Use Iris Nocturne: Disable Gradient before uninstalling the extension.
+ */
+.monaco-workbench {
+  --iris-background: url("{{BACKGROUND_IMAGE}}");
+  --iris-sidebar: linear-gradient(180deg, #2e2957, #103355);
+  --iris-panel: linear-gradient(180deg, #302b57, #123557);
+  --iris-unfocused: #2c245726;
+  --vscode-editor-background: transparent !important;
+  --vscode-sideBar-background: transparent !important;
+  --vscode-sideBarSectionHeader-background: transparent !important;
+  --vscode-panel-background: transparent !important;
+  --vscode-editorGroup-emptyBackground: transparent !important;
+  --vscode-editorGroupHeader-tabsBackground: {{TABS}} !important;
+  --vscode-editorGroupHeader-noTabsBackground: {{TABS}} !important;
+  --vscode-tab-activeBackground: {{ACTIVE_TAB}} !important;
+  --vscode-tab-inactiveBackground: {{TABS}} !important;
+  --vscode-tab-unfocusedActiveBackground: {{UNFOCUSED_TAB}} !important;
+  --vscode-tab-unfocusedInactiveBackground: {{TABS}} !important;
+  --vscode-scrollbarSlider-background: {{SCROLLBAR}} !important;
+  --vscode-scrollbarSlider-hoverBackground: {{SCROLLBAR_HOVER}} !important;
+  --vscode-scrollbarSlider-activeBackground: {{SCROLLBAR_ACTIVE}} !important;
+  --vscode-breadcrumb-background: transparent !important;
+  --vscode-notebook-editorBackground: transparent !important;
+  --vscode-notebook-cellEditorBackground: transparent !important;
+  --vscode-editorWidget-background: {{FLOATING_SURFACE}} !important;
+  --vscode-editorSuggestWidget-background: {{FLOATING_SURFACE}} !important;
+  --vscode-editorHoverWidget-background: {{FLOATING_SURFACE}} !important;
+  --vscode-quickInput-background: {{FLOATING_SURFACE}} !important;
+  --vscode-menu-background: {{FLOATING_SURFACE}} !important;
+  --vscode-notifications-background: {{FLOATING_SURFACE}} !important;
+  --vscode-editorWidget-border: {{FLOATING_BORDER}} !important;
+  --vscode-editorSuggestWidget-border: {{FLOATING_BORDER}} !important;
+  --vscode-editorHoverWidget-border: {{FLOATING_BORDER}} !important;
+  background: var(--iris-background) center / 100% 100% no-repeat !important;
+}
+
+/* Regions share viewport coordinates, so each starts at its actual height. */
+.monaco-workbench .part:is(.sidebar, .auxiliarybar, .activitybar) {
+  background: var(--iris-sidebar) 0 0 / 100% 100vh fixed no-repeat !important;
+}
+
+.monaco-workbench .part.panel {
+  background: var(--iris-panel) 0 0 / 100% 100vh fixed no-repeat !important;
+}
+
+.monaco-workbench .part:is(.editor, .titlebar, .statusbar),
+.monaco-workbench > .monaco-grid-view,
+.monaco-workbench .part.editor > .content,
+.monaco-workbench .part:is(.sidebar, .auxiliarybar, .panel) > .content,
+.monaco-workbench .part:is(.sidebar, .auxiliarybar, .panel) .pane,
+.monaco-workbench .part:is(.sidebar, .auxiliarybar, .panel) .monaco-list-rows,
+.monaco-workbench .part.editor .editor-group-container,
+.monaco-workbench .part.editor .breadcrumbs-control,
+.monaco-workbench .part.editor .editor-container,
+.monaco-workbench .part.editor .monaco-editor,
+.monaco-workbench .part.editor .monaco-editor-background,
+.monaco-workbench .part.editor .monaco-editor .margin,
+.monaco-workbench .part.panel .terminal-outer-container,
+.monaco-workbench .part.panel .terminal-wrapper,
+.monaco-workbench .part.panel .terminal {
+  background-color: transparent !important;
+}
+
+.monaco-workbench .part.titlebar {
+  background-color: {{TITLEBAR}} !important;
+}
+
+/* Share hover colors across the primary sidebar without changing other lists. */
+.monaco-workbench .part.sidebar {
+  --vscode-list-hoverBackground: {{SIDEBAR_HOVER}} !important;
+  --vscode-toolbar-hoverBackground: {{SIDEBAR_HOVER}} !important;
+}
+
+.monaco-workbench .part.sidebar .monaco-list-row:hover:not(.selected):not(.focused),
+.monaco-workbench .part.sidebar .monaco-pane-view .pane > .pane-header:hover {
+  background-color: {{SIDEBAR_HOVER}} !important;
+}
+
+/* Match the approved purple chrome while preserving native tab states/layout. */
+.monaco-workbench .part.editor .editor-group-container > .title,
+.monaco-workbench .part.editor .tabs-container {
+  background-color: {{TABS}} !important;
+}
+
+.monaco-workbench .part.editor .tab {
+  background-color: {{TABS}} !important;
+}
+
+.monaco-workbench .part.editor .editor-group-container.active .tab.active {
+  background-color: {{ACTIVE_TAB}} !important;
+}
+
+.monaco-workbench .part.editor .editor-group-container:not(.active) .tab.active {
+  background-color: {{UNFOCUSED_TAB}} !important;
+}
+
+/* Modern connected tabs paint their surface in a separate inner layer. */
+.monaco-workbench .part.editor .tab .tab-fill {
+  background-color: inherit !important;
+}
+
+/* Track/overview backgrounds reveal the local gradient; markers remain native. */
+.monaco-workbench .monaco-scrollable-element > .scrollbar,
+.monaco-workbench .part.editor :is(.minimap, .decorationsOverviewRuler) {
+  background-color: transparent !important;
+}
+
+.monaco-workbench .part.statusbar {
+  background-color: #38719d2e !important;
+}
+
+/* Same gradient in every editor group; only the unfocused group is veiled.
+ * The overlay is non-interactive and follows VS Code's native active class.
+ */
+.monaco-workbench .part.editor .editor-group-container:not(.active)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: var(--iris-unfocused);
+}
+
+.monaco-workbench .part.editor .editor-group-container {
+  border-color: #11142bd9 !important;
+}
+
+/* Translucent cells retain focus/selection borders and solid output content. */
+.monaco-workbench .notebookOverlay,
+.monaco-workbench .notebookOverlay .monaco-list-rows,
+.monaco-workbench .notebookOverlay .monaco-list-row,
+.monaco-workbench .notebookOverlay .cell-editor-container {
+  background-color: transparent !important;
+}
+
+/* Floating editors must cover underlying code; main editor gradients stay. */
+.monaco-workbench .part.editor.modal-editor-part,
+.monaco-workbench .part.editor .editor-instance:has(.settings-editor) {
+  --vscode-editor-background: {{FLOATING_SURFACE}} !important;
+  background-color: {{FLOATING_SURFACE}} !important;
+}
+
+/* Embedded Peek editors otherwise inherit the main editor's transparency. */
+.monaco-workbench .part.editor .peekview-widget .body {
+  background-color: var(--vscode-peekViewEditor-background) !important;
+}
+
+/* Widgets keep a solid surface even when nested inside an editor. */
+.monaco-workbench :is(.quick-input-widget, .monaco-menu-container, .monaco-dialog-box, .monaco-hover, .monaco-resizable-hover, .notifications-center, .notification-toast),
+.monaco-workbench .part.editor :is(.suggest-widget, .monaco-hover, .monaco-editor .find-widget, .editor-widget) {
+  --vscode-toolbar-hoverBackground: {{FLOATING_HOVER}} !important;
+  background-color: var(--vscode-editorWidget-background) !important;
+}

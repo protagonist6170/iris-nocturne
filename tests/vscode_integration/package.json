@@ -1,0 +1,25 @@
+{
+  "name": "iris-nocturne-validation",
+  "publisher": "iris-local-tests",
+  "version": "0.0.0",
+  "engines": {"vscode": "^1.90.0"},
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      {"command": "irisValidation.enableBackground", "title": "Iris Validation: Enable Background"},
+      {"command": "irisValidation.migration", "title": "Iris Validation: Migrate Legacy CSS"},
+      {"command": "irisValidation.disableBackground", "title": "Iris Validation: Restore Solid Fallback"},
+      {"command": "irisValidation.notebook", "title": "Iris Validation: Open Notebook"},
+      {"command": "irisValidation.code", "title": "Iris Validation: Open Split Editors"},
+      {"command": "irisValidation.diff", "title": "Iris Validation: Open Diff"},
+      {"command": "irisValidation.hover", "title": "Iris Validation: Open Hover"},
+      {"command": "irisValidation.suggest", "title": "Iris Validation: Open Suggestions"},
+      {"command": "irisValidation.find", "title": "Iris Validation: Open Find"},
+      {"command": "irisValidation.settingsJson", "title": "Iris Validation: Open Settings JSON"},
+      {"command": "irisValidation.settingsUi", "title": "Iris Validation: Open Settings UI"},
+      {"command": "irisValidation.peek", "title": "Iris Validation: Open Peek Definition"},
+      {"command": "irisValidation.sticky", "title": "Iris Validation: Show Sticky Scroll"}
+    ]
+  }
+}

@@ -29,7 +29,7 @@ class BuildTest(unittest.TestCase):
                 ".config/herdr/config.toml",
                 ".config/nvim/lua/iris_nocturne/palette.lua",
                 ".claude/themes/iris-nocturne.json",
-                ".config/iris-nocturne/fzf.sh",
+                ".config/fzf/iris-nocturne.sh",
             },
         )
 
@@ -47,7 +47,20 @@ class BuildTest(unittest.TestCase):
             outputs = build.generate(source)
             self.assertEqual(config.read_text(encoding="utf-8"), original)
 
-        self.assertEqual(len(outputs), 16)
+        self.assertEqual(len(outputs), 20)
+        self.assertEqual(
+            {name.split("/", 1)[0] for name in outputs},
+            {".config", ".codex", ".claude", "vscode"},
+        )
+        self.assertEqual(
+            {name for name in outputs if name.startswith("vscode/")},
+            {
+                "vscode/iris-nocturne.vsix",
+                "vscode/iris-nocturne-color-theme.json",
+                "vscode/iris-nocturne.css",
+                "vscode/settings.example.json",
+            },
+        )
         xml = outputs[".config/bat/themes/iris-nocturne.tmTheme"]
         self.assertEqual(outputs[".codex/themes/iris-nocturne.tmTheme"], xml)
         self.assertEqual(

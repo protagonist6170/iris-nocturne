@@ -14,8 +14,8 @@ under your configuration directory. Paths below are relative to the export root:
 |---|---|
 | `.config/lsd/colors.yaml` | Metadata colors: permissions, dates, sizes, users, Git status |
 | `.config/lsd/icons.yaml` | File-type, filename, and extension icons |
-| `.config/iris-nocturne/ls-colors.sh` | Shared true-color `LS_COLORS` table |
-| `.config/iris-nocturne/fzf.sh` | `IRIS_NOCTURNE_FZF_COLORS`, a single color-only `--color` argument |
+| `.config/ls-colors/iris-nocturne.sh` | Shared true-color `LS_COLORS` table |
+| `.config/fzf/iris-nocturne.sh` | `IRIS_NOCTURNE_FZF_COLORS`, a single color-only `--color` argument |
 | `.config/zsh/themes/iris-nocturne.zsh` | Foreground styles for highlighting and autosuggestions |
 
 The snippets assume `XDG_CONFIG_HOME` is set to your configuration directory.
@@ -40,8 +40,8 @@ Keep `icons.theme: fancy` to use the `icons.yaml` override.
 Source the table before running lsd/fd or initializing completion:
 
 ```zsh
-[[ ! -r "$XDG_CONFIG_HOME/iris-nocturne/ls-colors.sh" ]] ||
-  source "$XDG_CONFIG_HOME/iris-nocturne/ls-colors.sh"
+[[ ! -r "$XDG_CONFIG_HOME/ls-colors/iris-nocturne.sh" ]] ||
+  source "$XDG_CONFIG_HOME/ls-colors/iris-nocturne.sh"
 # Load your existing completion.zsh next, keeping its list-colors settings.
 ```
 
@@ -98,8 +98,8 @@ The pinned interfaces are documented in lsd's [theme guide](https://github.com/l
 Before initializing fzf, load the snippet and append its color argument:
 
 ```zsh
-if [[ -r "$XDG_CONFIG_HOME/iris-nocturne/fzf.sh" ]]; then
-  source "$XDG_CONFIG_HOME/iris-nocturne/fzf.sh"
+if [[ -r "$XDG_CONFIG_HOME/fzf/iris-nocturne.sh" ]]; then
+  source "$XDG_CONFIG_HOME/fzf/iris-nocturne.sh"
   export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:+$FZF_DEFAULT_OPTS }$IRIS_NOCTURNE_FZF_COLORS"
 fi
 ```

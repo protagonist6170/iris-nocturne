@@ -56,7 +56,7 @@ class FileThemeTest(unittest.TestCase):
                         '--hyperlink never "$2"'
                     ),
                     "test",
-                    str(home / ".config/iris-nocturne/ls-colors.sh"),
+                    str(home / ".config/ls-colors/iris-nocturne.sh"),
                     str(files),
                 ],
                 env=env,
@@ -90,7 +90,7 @@ class FileThemeTest(unittest.TestCase):
                         "-c",
                         'source "$1"; fd --color always . "$2"',
                         "test",
-                        str(home / ".config/iris-nocturne/ls-colors.sh"),
+                        str(home / ".config/ls-colors/iris-nocturne.sh"),
                         str(files),
                     ],
                     env=env,
@@ -149,7 +149,7 @@ class FzfThemeTest(unittest.TestCase):
     def test_color_fragment_is_consumable_without_changing_existing_options(
         self,
     ):
-        data = build.generate()[".config/iris-nocturne/fzf.sh"]
+        data = build.generate()[".config/fzf/iris-nocturne.sh"]
         with tempfile.TemporaryDirectory() as directory:
             fragment = pathlib.Path(directory) / "fzf.sh"
             fragment.write_bytes(data)

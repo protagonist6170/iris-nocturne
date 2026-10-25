@@ -4,7 +4,8 @@ A dark theme inspired by Xcode 27's Neon Noir, built for a consistent workspace
 across editors, terminals, and command-line tools.
 
 A shared palette and syntax rules produce native theme files for each application.
-This documentation covers **v0.1.0**.
+The VS Code package is **v0.1.0**; its optional background is validated on macOS
+with official VS Code Stable **1.143.1**.
 
 ## Build the theme
 
@@ -16,8 +17,10 @@ python3 build.py --output-root dist
 python3 build.py --output-root dist --check
 ```
 
-The export contains **16 files** under `.config/`, `.codex/`, and `.claude/`, with
-paths relative to a home directory. Generate `dist/` as needed and keep it out of
+The export contains **20 files**: 16 home-relative configuration resources under
+`.config/`, `.codex/` and `.claude/`, plus four VS Code delivery files under
+`vscode/`. Install the configuration resources in their matching home paths;
+install the VSIX through VS Code. Generate `dist/` as needed and keep it out of
 version control.
 
 `--output-root` is required. The generator renders all resources and validates
@@ -38,6 +41,7 @@ All output paths below are relative to the export root.
 |---|---|---|
 | Ghostty | `.config/ghostty/themes/iris-nocturne` | [Terminal colors](docs/applications.md#ghostty) |
 | Neovim | `.config/nvim/lua/iris_nocturne/palette.lua` | [Palette integration](docs/applications.md#neovim) |
+| VS Code | `vscode/{iris-nocturne.vsix,iris-nocturne-color-theme.json,iris-nocturne.css,settings.example.json}` | [Theme and optional gradient](docs/vscode.md) |
 | bat | `.config/bat/themes/iris-nocturne.tmTheme` | [Syntax theme](docs/applications.md#bat) |
 | Yazi | `.config/yazi/flavors/iris-nocturne.yazi/{flavor.toml,tmtheme.xml}` | [Flavor and icons](docs/applications.md#yazi) |
 | btop | `.config/btop/themes/iris-nocturne.theme` | [Monitor colors](docs/applications.md#btop) |
@@ -47,8 +51,8 @@ All output paths below are relative to the export root.
 | Codex CLI | `.codex/themes/iris-nocturne.tmTheme` | [Syntax theme](docs/applications.md#codex-cli) |
 | Claude Code CLI | `.claude/themes/iris-nocturne.json` | [Custom theme](docs/applications.md#claude-code-cli) |
 | lsd | `.config/lsd/{colors.yaml,icons.yaml}` | [File colors and icons](docs/cli-adapters.md#file-colors-and-icons) |
-| fd and file completion | `.config/iris-nocturne/ls-colors.sh` | [Shared file colors](docs/cli-adapters.md#file-colors-and-icons) |
-| fzf and fzf-tab | `.config/iris-nocturne/fzf.sh` | [Interface colors](docs/cli-adapters.md#fzf-and-fzf-tab) |
+| fd and file completion | `.config/ls-colors/iris-nocturne.sh` | [Shared file colors](docs/cli-adapters.md#file-colors-and-icons) |
+| fzf and fzf-tab | `.config/fzf/iris-nocturne.sh` | [Interface colors](docs/cli-adapters.md#fzf-and-fzf-tab) |
 | Zsh highlighting and autosuggestions | `.config/zsh/themes/iris-nocturne.zsh` | [Shell styles](docs/cli-adapters.md#zsh-highlighting-and-autosuggestions) |
 
 bat, Yazi, and Codex CLI receive identical TextMate XML; delta uses that theme
@@ -58,6 +62,16 @@ affect the result in each application.
 
 The optional [Neon Noir gradient background](assets/ghostty/README.md) for Ghostty
 is a static asset, separate from the export.
+
+VS Code receives a native theme and a bundled purple-to-blue background
+stylesheet. The background gives sidebars their own aligned gradient and gently
+fades inactive editor groups. Settings, modal editors, and code-preview widgets
+retain opaque surfaces. Iris includes commands to enable the gradient, migrate
+legacy CSS imports, and restore previous appearance; the native theme also works
+with solid backgrounds. Follow the
+[VS Code guide](docs/vscode.md) for installation and restoration through VS Code
+and Finder. The same guide ships in the VSIX. Development checks and isolated
+validation are documented in the [validation guide](docs/validation.md#vs-code-integration).
 
 Yazi and lsd share [purpose icons](assets/purpose-icons.toml) for special
 directories and project files. Ordinary directories keep a folder glyph;

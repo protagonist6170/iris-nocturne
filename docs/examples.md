@@ -18,12 +18,15 @@ config-repository/
         ├── ghostty/themes/iris-nocturne
         ├── nvim/lua/iris_nocturne/palette.lua
         ├── yazi/flavors/iris-nocturne.yazi/
-        ├── iris-nocturne/
+        ├── fzf/iris-nocturne.sh
+        ├── ls-colors/iris-nocturne.sh
         └── zsh/themes/iris-nocturne.zsh
 ```
 
 The tree shows a subset of the [exports](../README.md#supported-applications).
-Deploy them with copies, symlinks, or a tool such as Stow.
+Deploy them with copies, symlinks, or a tool such as Stow. The four `vscode/`
+delivery files sit alongside these home-relative directories in the export;
+keep them out of the home mirror and install the VSIX separately.
 
 To review a merge before installation, read the mirror as input and write to a
 separate export directory:
@@ -42,6 +45,20 @@ python3 -B "$theme_project/build.py" \
 [managed block markers](applications.md#merging-configuration-blocks). Review the
 separate export before installing it. Writing directly into a mirror linked to
 your active configuration makes changes immediately visible to applications.
+
+After reviewing the export, copy only the configuration directories into the
+mirror, preserving unrelated files:
+
+```sh
+rsync -a "$theme_export/.config/" "$config_mirror/.config/"
+rsync -a "$theme_export/.codex/" "$config_mirror/.codex/"
+rsync -a "$theme_export/.claude/" "$config_mirror/.claude/"
+```
+
+On migration from the earlier layout, update shell references to
+`fzf/iris-nocturne.sh` and `ls-colors/iris-nocturne.sh` before removing their old
+files and links. Remove the former `.config/iris-nocturne` directory only after
+checking it contains no personal files; generation does not delete stale outputs.
 
 ## Neovim
 
@@ -117,8 +134,8 @@ switching or reloading.
 
 For Zsh with fzf-tab, autosuggestions, and fast-syntax-highlighting:
 
-1. Source `iris-nocturne/ls-colors.sh` before completion initialization.
-2. Source `iris-nocturne/fzf.sh` before fzf initialization and append its color
+1. Source `ls-colors/iris-nocturne.sh` before completion initialization.
+2. Source `fzf/iris-nocturne.sh` before fzf initialization and append its color
    argument to your existing options.
 3. After loading fzf-tab, append the same argument to its effective `fzf-flags`
    context.

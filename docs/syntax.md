@@ -45,6 +45,22 @@ Conditional keywords are italic when the parser exposes a separate category.
 
 ## Classification and fallbacks
 
+### VS Code
+
+The VSIX reuses the ordered TextMate rules and enables semantic highlighting.
+Functions and methods share iris blue; parameters are pink, properties light
+blue, and namespaces pale gold. Types and enum members use distinct shades for
+declarations and definitions. The `readonly`, `static`, `async`, and library-origin
+modifiers preserve the symbol's category color. Deprecated symbols retain
+strikethrough, and explicit `selfParameter` tokens use the built-in variable role.
+
+Installed language extensions determine the semantic detail available for Python,
+C++, and TS/TSX. Standard token classifications do not always distinguish built-in
+types from library types. Unrecognized semantic tokens fall back through VS Code's
+TextMate mappings and the installed grammar. The theme provides colors without
+installing language services. See the [VS Code guide](vscode.md) for the
+background and solid-theme fallback.
+
 ### TextMate consumers
 
 TextMate rules follow grammar scopes. Calls, method calls, and `support.function`

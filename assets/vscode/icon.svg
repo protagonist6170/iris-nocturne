@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+<title id="title">Iris Nocturne — abstract iris</title>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#302957"/><stop offset="1" stop-color="#103555"/></linearGradient>
+  <linearGradient id="petal" x1="0" y1="0" x2=".5" y2="1"><stop stop-color="#DDD2FF"/><stop offset="1" stop-color="#AEB6FF"/></linearGradient>
+</defs>
+<rect x="1" y="1" width="254" height="254" rx="55" fill="url(#bg)"/>
+<rect x="1" y="1" width="254" height="254" rx="55" fill="none" stroke="#B3AEF0" stroke-opacity=".18" stroke-width="2"/>
+<path d="M51 86C81 84 106 100 119 127C113 146 95 159 74 153C61 136 53 113 51 86Z" fill="#9CBFFF"/>
+<path d="M205 86C175 84 150 100 137 127C143 146 161 159 182 153C195 136 203 113 205 86Z" fill="#BBAAFF"/>
+<path d="M128 39C151 61 160 83 149 104C140 120 133 126 133 143C133 164 141 183 128 211C115 183 123 164 123 143C123 126 116 120 107 104C96 83 105 61 128 39Z" fill="url(#petal)"/>
+</svg>

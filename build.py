@@ -19,6 +19,7 @@ from renderers import (
     neovim,
     starship,
     textmate,
+    vscode,
     yazi,
     zsh,
 )
@@ -81,10 +82,10 @@ def generate(source_home: pathlib.Path | None = None) -> dict[str, bytes]:
     xml = textmate.textmate_theme(colors, rules)
     text_outputs = {
         ".config/zsh/themes/iris-nocturne.zsh": zsh.shell_styles(colors),
-        ".config/iris-nocturne/fzf.sh": fzf.shell_colors(palette["colors"]),
+        ".config/fzf/iris-nocturne.sh": fzf.shell_colors(palette["colors"]),
         ".config/lsd/colors.yaml": lsd.color_theme(colors),
         ".config/lsd/icons.yaml": lsd.icon_theme(icons),
-        ".config/iris-nocturne/ls-colors.sh": ls_colors.shell_colors(colors),
+        ".config/ls-colors/iris-nocturne.sh": ls_colors.shell_colors(colors),
         ".claude/themes/iris-nocturne.json": claude.claude_theme(
             palette["colors"], ansi
         ),
@@ -132,6 +133,7 @@ def generate(source_home: pathlib.Path | None = None) -> dict[str, bytes]:
     outputs[".config/bat/themes/iris-nocturne.tmTheme"] = xml
     outputs[".config/yazi/flavors/iris-nocturne.yazi/tmtheme.xml"] = xml
     outputs[".codex/themes/iris-nocturne.tmTheme"] = xml
+    outputs.update(vscode.resources(colors, ansi, rules))
     return outputs
 
 
