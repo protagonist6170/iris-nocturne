@@ -34,6 +34,24 @@ async function activate(context) {
   const writeReport = (name, data) => fs.writeFile(
       path.join(results, name + '.json'), JSON.stringify(data, null, 2) + '\n');
 
+  // In these controlled scenarios, explicitly simulate the user's save step.
+  // Abort if a new draft is already present or a resource is outside the sandbox.
+  async function reviewedCommand(id) {
+    let result = await vscode.commands.executeCommand(id);
+    if (result.queuedReview) result = await vscode.commands.executeCommand(id);
+    if (!result.pendingSave) return result;
+    const storage = path.join(path.dirname(context.globalStorageUri.fsPath), 'protagonist.iris-nocturne');
+    const journal = JSON.parse(await fs.readFile(path.join(storage, 'background-transaction.json'), 'utf8'));
+    for (const entry of journal.review) {
+      const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(entry.source.uri));
+      assert.ok(document.uri.fsPath.startsWith(path.join(canonicalRoot, 'user-data') + path.sep));
+      assert.ok((await fs.realpath(document.uri.fsPath)).startsWith(path.join(canonicalRoot, 'user-data') + path.sep));
+      assert.equal(document.getText(), entry.after, 'A new user draft must not be saved by validation');
+      if (document.isDirty) assert.equal(await document.save(), true);
+    }
+    return vscode.commands.executeCommand(id);
+  }
+
   async function openCode() {
     await vscode.commands.executeCommand('workbench.action.closeQuickOpen');
     await vscode.commands.executeCommand('workbench.action.closeModalEditor');
@@ -102,8 +120,8 @@ async function activate(context) {
     'irisValidation.enableBackground': async () => {
       const before = await fs.readFile(workbench, 'utf8');
       await context.globalState.update('originalWorkbenchHash', digest(before));
-      await vscode.workspace.getConfiguration('workbench').update('colorTheme', 'Dark Modern', vscode.ConfigurationTarget.Global);
-      await vscode.commands.executeCommand('irisNocturne.enableGradient');
+      const result = await reviewedCommand('irisNocturne.enableGradient');
+      assert.ok(!result.cancelled, 'Select Iris Nocturne, then run Enable Background again.');
       const patched = await fs.readFile(workbench, 'utf8');
       assert.ok(patched.includes('IRIS-NOCTURNE:START'));
       assert.ok(patched.includes('Content-Security-Policy'));
@@ -111,18 +129,18 @@ async function activate(context) {
       void vscode.commands.executeCommand('workbench.action.reloadWindow').catch(() => {});
     },
     'irisValidation.disableBackground': async () => {
-      await vscode.commands.executeCommand('irisNocturne.restoreAppearance');
+      await reviewedCommand('irisNocturne.restoreAppearance');
       const restored = await fs.readFile(workbench);
       assert.equal(digest(restored), context.globalState.get('originalWorkbenchHash'));
-      assert.equal(vscode.workspace.getConfiguration('workbench').get('colorTheme'), 'Dark Modern');
-      await writeReport('restoration', {originalWorkbenchRestored: true, previousThemeRestored: true});
+      await writeReport('restoration', {originalWorkbenchRestored: true, themePickerOpened: true});
     },
     'irisValidation.migration': async () => {
       const original = context.globalState.get('originalWorkbenchHash');
       const config = vscode.workspace.getConfiguration();
+      assert.equal(config.get('workbench.colorTheme'), 'Iris Nocturne', 'Select Iris before running migration validation.');
       await config.update('irisNocturne.customCssImports', [], vscode.ConfigurationTarget.Global);
-      await vscode.commands.executeCommand('irisNocturne.reapplyBackground');
-      await vscode.commands.executeCommand('irisNocturne.restoreAppearance');
+      await reviewedCommand('irisNocturne.reapplyBackground');
+      await reviewedCommand('irisNocturne.disableGradient');
       assert.equal(digest(await fs.readFile(workbench)), original);
       const storage = path.join(path.dirname(context.globalStorageUri.fsPath), 'protagonist.iris-nocturne');
       await fs.rm(path.join(storage, 'background-state.json'));
@@ -138,7 +156,7 @@ async function activate(context) {
       await config.update('vscode_custom_css.statusbar', false, vscode.ConfigurationTarget.Global);
       await vscode.commands.executeCommand('extension.installCustomCSS');
       assert.ok((await fs.readFile(workbench, 'utf8')).includes('VSCODE-CUSTOM-CSS-START'));
-      const result = await vscode.commands.executeCommand('irisNocturne.enableGradient');
+      const result = await reviewedCommand('irisNocturne.enableGradient');
       assert.equal(result.migrated, true);
       const migrated = await fs.readFile(workbench, 'utf8');
       assert.ok(migrated.includes('Content-Security-Policy'));
@@ -148,20 +166,19 @@ async function activate(context) {
       assert.deepEqual(vscode.workspace.getConfiguration().get('vscode_custom_css.imports'), []);
       await config.update('editor.fontSize', 15, vscode.ConfigurationTarget.Global);
       await config.update('workbench.colorTheme', 'Light Modern', vscode.ConfigurationTarget.Global);
-      for (let attempt = 0; attempt < 40; attempt++) {
-        const state = JSON.parse(await fs.readFile(path.join(storage, 'background-state.json'), 'utf8'));
-        if (!state.gradient) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await reviewedCommand('irisNocturne.disableGradient');
       const disabled = await fs.readFile(workbench, 'utf8');
       assert.ok(!disabled.includes('--iris-background'));
       assert.ok(disabled.includes('--iris-validation-first') && disabled.includes('--iris-validation-last'));
       assert.equal(vscode.workspace.getConfiguration().get('editor.fontSize'), 15);
-      await config.update('irisNocturne.customCssImports', [], vscode.ConfigurationTarget.Global);
-      await vscode.commands.executeCommand('irisNocturne.reapplyBackground');
-      await vscode.commands.executeCommand('irisNocturne.restoreAppearance');
-      assert.equal(digest(await fs.readFile(workbench)), original);
       assert.equal(vscode.workspace.getConfiguration().get('workbench.colorTheme'), 'Light Modern');
+      await config.update('irisNocturne.customCssImports', [], vscode.ConfigurationTarget.Global);
+      // This isolated fixture explicitly selects themes for cleanup.
+      await config.update('workbench.colorTheme', 'Iris Nocturne', vscode.ConfigurationTarget.Global);
+      await reviewedCommand('irisNocturne.reapplyBackground');
+      await reviewedCommand('irisNocturne.disableGradient');
+      await config.update('workbench.colorTheme', 'Light Modern', vscode.ConfigurationTarget.Global);
+      assert.equal(digest(await fs.readFile(workbench)), original);
       assert.equal(vscode.workspace.getConfiguration().get('editor.fontSize'), 15);
       await writeReport('migration', {actualLegacyLoader: true, cssOrderPreserved: true,
         themeSwitchDisablesGradient: true, otherCssRetained: true, personalSettingsPreserved: true,

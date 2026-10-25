@@ -46,14 +46,30 @@ yet. Record your previous theme if you wish to return to it later.
 
 ## Enable the gradient
 
-1. Run **Iris Nocturne: Enable Gradient**.
-2. Wait for the success notification, then choose **Reload Window**.
-3. Reload any other open windows of this VS Code application.
+1. Select **Iris Nocturne** with **Preferences: Color Theme**. If you run Enable
+   Gradient while another theme is active, Iris opens this native picker and ends
+   that command. Selecting a theme does not enable the gradient.
+2. Once Iris is active, run **Iris Nocturne: Enable Gradient**. On first use,
+   choose the default profile's Application `settings.json` and this profile's
+   User `settings.json` in the file selectors. They may be the same file. You can
+   open them through VS Code's Preferences commands to check their paths first.
+3. If Iris prepares settings drafts, review them and save the files yourself.
+   Iris never saves settings documents. Run **Enable Gradient** again to commit
+   the background; saving or switching themes cannot resume the earlier command.
+4. After the success notification, choose **Reload Window**, and reload the other
+   open windows of this VS Code application.
 
-Iris locates its own background, records the current settings, backs up the
-workbench, selects its theme, and merges the five transparent canvas overrides
-and custom title-bar setting. Other preferences and color customizations stay
-in place. No CSS URL or manual CSP editing is needed.
+Iris records the selected resource URIs and their resolved file paths with the
+original setting values. Editor focus does not select a settings resource. If a
+file identity or `applyToAllProfiles` routing changes, Iris stops and retains the
+records instead of applying a backup to a different document. Existing settings
+drafts must be saved or undone before a new review can be prepared.
+
+Iris locates its own background, records the managed settings, backs up the
+workbench, and merges the five transparent canvas overrides and custom title-bar
+setting into the review drafts. Unrelated top-level settings and comments stay
+in place; the edited color object is merged with its existing values. No CSS URL
+or manual CSP editing is needed.
 
 The five canvas overrides are `terminal.background`, `minimap.background`,
 `editorGutter.background`, `notebook.cellEditorBackground`, and
@@ -68,7 +84,8 @@ permissions or make broad ownership changes.
 
 ## Migrate an existing CSS Loader installation
 
-Run **Iris Nocturne: Enable Gradient** with the old loader still installed. Iris
+Select the Iris theme, then run **Iris Nocturne: Enable Gradient** with the old
+loader still installed. Iris
 recognizes **Custom CSS and JS Loader 7.5.1** application markers and reads its
 original workbench backup. It checks all imports before changing anything.
 
@@ -96,8 +113,9 @@ settings records in local extension storage, so neither the old extension nor
 its old backup is required after successful migration. Keep Iris’s recovery
 records while it manages the background.
 
-To change managed CSS, edit **Iris Nocturne: Custom Css Imports** and run
-**Iris Nocturne: Reapply Background**. Remote CSS is fetched only during an
+To change managed CSS, edit **Iris Nocturne: Custom Css Imports**, select the Iris
+theme, and run **Iris Nocturne: Reapply Background**. Like Enable Gradient, if
+Reapply opens the theme picker, select Iris and run Reapply again. Remote CSS is fetched only during an
 explicit enable, migration, or reapply operation, not on each startup.
 
 ## Disable or restore
@@ -106,16 +124,45 @@ explicit enable, migration, or reapply operation, not on each startup.
 |---|---|
 | Keep Iris with solid backgrounds | **Iris Nocturne: Disable Gradient** |
 | Return to the appearance before enabling Iris | **Iris Nocturne: Restore Previous Appearance** |
-| Switch to a different color theme | Choose it with **Preferences: Color Theme**; Iris automatically disables its gradient and prompts for reload |
+| Switch to a different color theme | Choose it with **Preferences: Color Theme**; if cleanup needs settings changes, review/save them and run **Disable Gradient** to finish |
 
 After any background change, reload this and other open windows. Disabling the
 Iris gradient retains other CSS taken over during migration. A workbench patch
 may therefore remain while those imports are still managed.
 
-Restoration operates field by field. A value edited by you after enabling Iris
-is preserved rather than overwritten. If the previous theme was already Iris,
-its earlier history cannot be inferred; Restore Previous Appearance opens the
-theme selector for you to choose a replacement.
+Disable, Restore and Reapply use the same review/save/re-run boundary as Enable.
+Restore Previous Appearance opens the native theme picker only after its
+background transaction completes. If a review is already pending, another
+command cannot finish it: run the original command after saving, or undo the
+reviewed settings edits and save before choosing a different command.
+
+Your latest native theme choice is preserved. Cancelled pickers, delayed theme
+commits, settings saves and startup Recover never resume an earlier Enable.
+Startup does not open a theme picker. Theme reconciliation may prepare cleanup
+drafts, but it does not save them or report the gradient disabled until you run
+Disable Gradient to finish.
+
+Restoration operates field by field. Values edited after enabling Iris are
+preserved. A document edited before a review is applied rejects the whole stale
+WorkspaceEdit. A new draft entered after application stays unsaved until you
+choose to save it; Iris does not issue a save request. On the next explicit
+command, it checks clean documents, saved contents, field values and resource
+identities before committing the application files. Conflicts stop the operation
+and retain its original records. Iris never writes the native theme setting,
+including when reading older records that managed it.
+
+These checks also run when no setting needs a text change. Unsaved drafts cannot
+enable the background or cause Disable to discard original backups. Re-running a
+review checks every managed field's resource and scope, including fields that
+already had the desired value and needed no edit.
+The fields to change and the fields to preserve are decided from the same clean
+document snapshots. Iris checks their text and document versions again before
+submitting the WorkspaceEdit, including unchanged documents when the delta is
+empty. An edit followed by Undo still invalidates the captured version, even if
+the text matches again. On a saved re-run, all participating documents are
+checked together after the last file read, so a later read cannot hide an edit
+to an earlier document. Closing and reopening a settings document also invalidates
+any in-flight check holding the old document; new drafts remain untouched.
 
 **Before uninstalling Iris**, run Restore Previous Appearance. If other managed
 CSS remains and you want to remove all Iris-managed injection, clear
@@ -141,6 +188,31 @@ lock. Keep these recovery records while Iris manages the installation. The manag
 uses an application lock and a recovery journal; an interrupted operation offers
 **Recover** at the next startup. Manage recovery from the original profile.
 Never delete an active lock or recovery journal to bypass an error.
+If a requested recovery cannot proceed, Iris displays the reason, including when
+manual reconciliation is required.
+
+The journal keeps the original workbench/state, the intended result, resource
+identities and the settings review. Its existing per-field progress records
+whether an edit started and whether the host confirmed its application. A
+confirmed model edit is not a confirmed disk save. Only re-running the same
+command can finish a review after a manual save. Recover cannot complete an old
+Enable on your behalf.
+Commands already waiting in the queue before a review finished also cannot serve
+as that re-run. Each request also records which documents were unsaved when it
+was issued; saving them while that request waits cannot authorize it to finish
+the review or start a new transaction. This remains true if a preceding command
+has already consumed the review. Issue a new command after saving. Read-only
+theme checks ahead of that new command do not make it an older request.
+
+If an edit result or completion checkpoint is uncertain, Iris leaves the current
+drafts, settings and recovery records in place and stops. Matching a planned
+value does not establish ownership. Older settings records without resource
+identity also require manual reconciliation. Do not delete the journal to bypass
+these checks.
+
+If the later workbench/state commit fails, Iris rolls those files back and keeps
+the review and original settings backups for retry. It does not undo or save the
+user's manually saved settings. Completed legacy undo records are not replayed.
 
 If Iris reports an external modification, stop and restore that modification
 with its own tool before retrying. If the application cannot be restored, quit
@@ -170,6 +242,12 @@ The native theme reuses shared TextMate rules, semantic categories, and all
 source is `assets/vscode/icon.svg`. Builds use Python's standard library; the
 background manager uses VS Code and Node built-ins, with no runtime package
 dependencies. Local validation fixtures are excluded from the VSIX.
+
+`assets/vscode/managed-appearance.json` defines the six managed appearance fields
+in native settings format. The runtime and generator read this same definition;
+the VSIX bundles it under `background/`, and the exported settings example adds
+the manually selected theme as a reference. Conditional restoration and legacy
+migration rules remain in the background manager.
 
 ## References
 

@@ -6,11 +6,13 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const {fileURLToPath} = require('node:url');
 const {isDeepStrictEqual: equal} = require('node:util');
+const {'workbench.colorCustomizations': colorCustomizations, ...globalAppearance} = require('./managed-appearance.json');
 
 const START = '<!-- IRIS-NOCTURNE:START -->';
 const END = '<!-- IRIS-NOCTURNE:END -->';
-const CANVASES = ['terminal.background', 'minimap.background', 'editorGutter.background',
-  'notebook.cellEditorBackground', 'notebook.outputContainerBackgroundColor'];
+const irisColors = colorCustomizations['[Iris Nocturne]'];
+const MANAGED_SETTINGS = [...Object.entries(globalAppearance),
+  ...Object.entries(irisColors).map(([key, after]) => ['color:' + key, after])];
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const value = (data) => data === undefined ? {exists: false} : {exists: true, value: data};
 const unpack = (record) => record.exists ? record.value : undefined;
@@ -95,6 +97,11 @@ async function loadImports(sources, variables) {
 }
 
 class Background {
+  #reviewRevision = 0;
+
+  // Queue admission follows completed reviews, not unrelated read-only work.
+  get reviewRevision() { return this.#reviewRevision; }
+
   constructor({workbench, identity, profile, css, settings, variables = {}, storage}) {
     Object.assign(this, {workbench, identity, profile, css, settings, variables});
     this.directory = path.join(path.dirname(workbench), '.iris-nocturne');
@@ -106,7 +113,19 @@ class Background {
     const text = await optional(this.stateFile);
     return text ? JSON.parse(text) : undefined;
   }
-  async locked(run) {
+  // Inspection never acquires a lock or changes the application or its records.
+  async inspect() {
+    if (await optional(this.journalFile) !== undefined) return {status: 'recovery'};
+    const state = await this.state();
+    if (!state) return {status: 'unmanaged'};
+    const current = await fs.readFile(this.workbench, 'utf8');
+    const changed = state.identity !== this.identity || state.expected !== hash(current);
+    return {status: changed ? 'changed' : 'ready', gradient: state.gradient};
+  }
+  async recover() {
+    await this.locked(async () => {}, 'recover');
+  }
+  async locked(run, intent, unsavedResources = []) {
     await fs.mkdir(this.storage, {recursive: true});
     await fs.mkdir(this.directory, {recursive: true});
     const lock = path.join(this.directory, 'lock');
@@ -117,7 +136,7 @@ class Background {
           try { process.kill(JSON.parse(owner).pid, 0); } catch (check) {
             if (check.code === 'ESRCH') {
               await fs.rm(lock, {recursive: true});
-              return this.locked(run);
+              return this.locked(run, intent, unsavedResources);
             }
           }
         }
@@ -127,58 +146,164 @@ class Background {
     }
     try {
       await fs.writeFile(path.join(lock, 'owner.json'), json({pid: process.pid}));
-      await this.recover();
+      const text = await optional(this.journalFile);
+      const journal = text ? JSON.parse(text) : undefined;
+      if (journal?.review) {
+        const result = await this.#review(journal, intent, unsavedResources);
+        if (result) return result;
+      } else await this.#rollback();
       return await run();
     } finally { await fs.rm(lock, {recursive: true, force: true}); }
   }
-  async recover() {
+  async #rollback() {
     const text = await optional(this.journalFile);
     if (!text) return;
     const journal = JSON.parse(text);
     if (journal.identity !== this.identity || journal.profile !== this.profile) {
       throw new Error('An unfinished Iris transaction belongs to another application version or profile. Use its original profile to recover.');
     }
+    // Older unfinished settings writes cannot be rebound or saved automatically.
+    // rolledBack also includes undos skipped for user edits; never replay them.
+    const changes = journal.changes.filter((change) => change.key !== 'workbench.colorTheme');
+    const uncertain = changes.find((change) => journal.schema !== 2 ||
+      !['pending', 'rolledBack'].includes(change.progress));
+    if (uncertain) {
+      throw new Error(`Cannot confirm the write or rollback of ${uncertain.key}. Automatic recovery stopped; current settings and recovery records were preserved. Manual reconciliation is required in the original profile.`);
+    }
+    await this.#restoreFiles(journal);
+    await fs.rm(this.journalFile);
+  }
+  async #restoreFiles(journal) {
+    journal.rollback ??= {html: false, state: false};
     const current = await fs.readFile(this.workbench, 'utf8');
     if (![hash(journal.beforeHtml), journal.afterHash].includes(hash(current))) {
       throw new Error('The workbench changed during an unfinished transaction. Restore a clean application; Iris will not overwrite it.');
     }
-    await atomic(this.workbench, journal.beforeHtml);
-    for (const change of [...journal.changes].reverse()) {
-      if (equal(value(await this.settings.read(change.key)), change.after)) {
-        await this.settings.write(change.key, unpack(change.before));
-      }
+    if (!journal.rollback.html) {
+      await atomic(this.workbench, journal.beforeHtml);
+      journal.rollback.html = true;
+      await atomic(this.journalFile, json(journal));
     }
-    if (journal.beforeState === undefined) await fs.rm(this.stateFile, {force: true});
-    else await atomic(this.stateFile, journal.beforeState);
-    await fs.rm(this.journalFile);
+    if (!journal.rollback.state) {
+      if (journal.beforeState === undefined) await fs.rm(this.stateFile, {force: true});
+      else await atomic(this.stateFile, journal.beforeState);
+      journal.rollback.state = true;
+      await atomic(this.journalFile, json(journal));
+    }
   }
-  async transaction(state, html, changes, expectedBefore) {
-    const journal = {identity: this.identity, profile: this.profile,
-      beforeHtml: await fs.readFile(this.workbench, 'utf8'),
-      beforeState: await optional(this.stateFile), afterHash: hash(html), changes};
-    if (hash(journal.beforeHtml) !== expectedBefore) throw new Error('The workbench changed while preparing the operation. Retry after resolving the other modification.');
-    await atomic(this.journalFile, json(journal));
+  async #commit(journal) {
     try {
-      for (const change of changes) {
-        if (!equal(value(await this.settings.read(change.key)), change.before)) throw new Error(`Setting changed during the operation: ${change.key}`);
-        await this.settings.write(change.key, unpack(change.after));
+      const current = hash(await fs.readFile(this.workbench, 'utf8'));
+      if (![hash(journal.beforeHtml), journal.afterHash].includes(current)) {
+        throw new Error('The workbench changed during the operation. Nothing was overwritten.');
       }
-      await atomic(this.workbench, html);
-      await atomic(this.stateFile, json(state));
+      journal.rollback = {html: false, state: false};
+      await atomic(this.journalFile, json(journal));
+      await atomic(this.workbench, journal.afterHtml);
+      await atomic(this.stateFile, json(journal.afterState));
       await fs.rm(this.journalFile);
     } catch (error) {
-      try { await this.recover(); } catch (recovery) {
+      try { await this.#restoreFiles(journal); } catch (recovery) {
         throw new Error(`${error.message} Recovery is incomplete: ${recovery.message}`);
       }
+      // Settings were saved by the user. Keep their original snapshots for an
+      // explicit retry; file rollback must not undo or save settings drafts.
+      if (!journal.review) await fs.rm(this.journalFile);
       throw error;
     }
+    const backup = journal.afterState.migration.legacyBackup;
+    if (backup && path.dirname(backup) === path.dirname(this.workbench)) {
+      const original = await optional(backup);
+      if (original !== undefined && hash(original) === hash(journal.afterState.base)) {
+        await fs.rm(backup).catch(() => {});
+      }
+    }
+    return {gradient: journal.afterState.gradient, migrated: journal.afterState.migration.completed};
   }
-  async change(key, after) {
-    return {key, before: value(await this.settings.read(key)), after: value(after)};
+  async #review(journal, intent, unsavedResources) {
+    if (journal.identity !== this.identity || journal.profile !== this.profile) {
+      throw new Error('This settings review belongs to another application version or profile. Use its original profile.');
+    }
+    if (journal.changes.every((change) => change.progress === 'pending')) {
+      await this.#restoreFiles(journal);
+      await fs.rm(this.journalFile);
+      return;
+    }
+    if (journal.changes.some((change) => change.progress !== 'written')) {
+      throw new Error('Cannot confirm the settings edit. Current drafts and recovery records were preserved. Manual reconciliation is required.');
+    }
+    const requestedUnsaved = journal.review.some((entry) => unsavedResources.includes(entry.source.uri));
+    await this.settings.validate(this.#settingsInputs(journal), journal.review.map((entry) => entry.source));
+    if (intent !== journal.intent) {
+      if (!requestedUnsaved && await this.settings.saved(journal.review, journal.changes, 'before')) {
+        await this.#restoreFiles(journal);
+        await fs.rm(this.journalFile);
+        return;
+      }
+      throw new Error(`Finish ${journal.intent}, or undo its settings drafts and save before another command. No earlier command was resumed.`);
+    }
+    if (requestedUnsaved || !await this.settings.saved(journal.review, journal.changes, 'after')) {
+      return {pendingSave: true, intent: journal.intent, resources: journal.review.map((entry) => entry.source.uri)};
+    }
+    return this.#commit(journal);
   }
-  async apply({reapply = false} = {}) {
+  #settingsInputs(journal) {
+    const before = journal.beforeState ? JSON.parse(journal.beforeState).saved : [];
+    // Keep both sides: Disable clears saved, while Reapply may replace an entry.
+    return [...before, ...journal.afterState.saved, ...journal.changes]
+        .filter((entry) => entry.key !== 'workbench.colorTheme');
+  }
+  async transaction(state, html, changes, expectedBefore, intent, snapshot) {
+    const journal = {schema: 2, identity: this.identity, profile: this.profile,
+      beforeHtml: await fs.readFile(this.workbench, 'utf8'),
+      beforeState: await optional(this.stateFile), afterHash: hash(html),
+      afterHtml: html, afterState: state, intent,
+      changes: changes.map((change) => ({...change, progress: 'pending'})),
+      rollback: {html: false, state: false}};
+    // Validation is unconditional; only producing a draft depends on the delta.
+    const documents = await this.settings.plan(changes, this.#settingsInputs(journal), snapshot);
+    const review = changes.length ? documents : undefined;
+    journal.review = review;
+    if (hash(journal.beforeHtml) !== expectedBefore) throw new Error('The workbench changed while preparing the operation. Retry after resolving the other modification.');
+    await atomic(this.journalFile, json(journal));
+    if (review) {
+      for (const change of journal.changes) change.progress = 'writing';
+      await atomic(this.journalFile, json(journal));
+    }
+    let staged;
+    // Even a zero-delta plan submits unchanged documents for version validation.
+    try { staged = await this.settings.stage(documents); } catch (error) {
+      if (!review) throw error;
+      throw new Error(`${error.message} Cannot confirm the settings edit; drafts and recovery records were preserved. Manual reconciliation is required.`);
+    }
+    if (!staged) {
+      if (review) {
+        for (const change of journal.changes) change.progress = 'pending';
+        await atomic(this.journalFile, json(journal));
+      }
+      await this.#restoreFiles(journal);
+      await fs.rm(this.journalFile);
+      throw new Error('Setting changed during the operation. Retry after finishing your settings edits.');
+    }
+    if (!review) return this.#commit(journal);
+    // "written" confirms the model edit, not a disk save. No event resumes it.
+    for (const change of journal.changes) change.progress = 'written';
+    await atomic(this.journalFile, json(journal));
+    this.#reviewRevision++;
+    return {pendingSave: true, intent, resources: review.map((entry) => entry.source.uri)};
+  }
+  change(snapshot, key, after) {
+    return {...snapshot.fields.find((entry) => entry.key === key), after: value(after)};
+  }
+  async apply({reapply = false, unsavedResources = []} = {}) {
     return this.locked(async () => {
       let state = await this.state();
+      const inputs = state?.saved.filter((entry) => entry.key !== 'workbench.colorTheme') ?? [];
+      for (const key of ['vscode_custom_css.imports', 'irisNocturne.customCssImports', ...MANAGED_SETTINGS.map(([key]) => key)]) {
+        if (!inputs.some((entry) => entry.key === key)) inputs.push({key});
+      }
+      const snapshot = await this.settings.snapshot(inputs, unsavedResources);
+      const read = (key) => unpack(snapshot.fields.find((entry) => entry.key === key).before);
       const existing = Boolean(state);
       const current = await fs.readFile(this.workbench, 'utf8');
       const changes = [];
@@ -193,9 +318,9 @@ class Background {
       if (!state) {
         let base = current;
         let legacyBackup;
-        const sources = await this.settings.read('vscode_custom_css.imports') ?? [];
+        const sources = read('vscode_custom_css.imports') ?? [];
         if (!Array.isArray(sources)) throw new Error('Legacy Imports must be an array.');
-        const ownSources = await this.settings.read('irisNocturne.customCssImports') ?? [];
+        const ownSources = read('irisNocturne.customCssImports') ?? [];
         if (!Array.isArray(ownSources)) throw new Error('Iris CSS imports must be an array.');
         const session = current.match(/<!-- !! VSCODE-CUSTOM-CSS-SESSION-ID ([0-9a-fA-F-]+) !! -->/);
         if (current.includes('VSCODE-CUSTOM-CSS') && !session) throw new Error('Unrecognized legacy patch. Restore it before migrating.');
@@ -211,8 +336,8 @@ class Background {
         const imports = await loadImports([...sources, ...ownSources], this.variables);
         migrated ||= sources.length > 0 && imports.some((entry) => entry.iris && entry.source);
         const customSources = imports.filter((entry) => entry.source && !entry.iris).map((entry) => entry.source);
-        if (sources.length) changes.push(await this.change('vscode_custom_css.imports', []));
-        if (!equal(customSources, ownSources)) changes.push(await this.change('irisNocturne.customCssImports', customSources));
+        if (sources.length) changes.push(this.change(snapshot, 'vscode_custom_css.imports', []));
+        if (!equal(customSources, ownSources)) changes.push(this.change(snapshot, 'irisNocturne.customCssImports', customSources));
         state = {schema: 1, identity: this.identity, profile: this.profile, base,
           expected: hash(current), imports, saved: [], gradient: false,
           migration: {imports: sources, completed: migrated, legacyBackup}};
@@ -220,69 +345,52 @@ class Background {
       if (state.expected !== hash(current)) throw new Error('The workbench was modified outside Iris. Restore that modification before continuing.');
       if (existing && (reapply || !state.gradient)) {
         // Keep the Iris slot's position while refreshing explicitly managed imports.
-        const sources = await this.settings.read('irisNocturne.customCssImports') ?? [];
+        const sources = read('irisNocturne.customCssImports') ?? [];
         const loaded = await loadImports(sources, this.variables);
         const others = loaded.filter((entry) => !entry.iris);
         const irisIndex = state.imports.findIndex((entry) => entry.iris);
         others.splice(Math.min(Math.max(irisIndex, 0), others.length), 0, {iris: true});
         state.imports = others;
       }
-      {
-        const desired = [['workbench.colorTheme', 'Iris Nocturne'], ['window.titleBarStyle', 'custom'],
-          ...CANVASES.map((key) => ['color:' + key, '#00000000'])];
-        for (const [key, after] of desired) {
-          const change = await this.change(key, after);
-          const old = state.saved.findIndex((entry) => entry.key === key);
-          if (old >= 0 && !equal(change.before, state.saved[old].after)) state.saved.splice(old, 1);
-          if (!state.saved.some((entry) => entry.key === key)) {
-            const saved = structuredClone(change);
-            if (migrated && key.startsWith('color:') && unpack(saved.before) === '#00000000') saved.before = value(undefined);
-            state.saved.push(saved);
-          }
-          if (!equal(change.before, change.after)) changes.push(change);
+      for (const [key, after] of MANAGED_SETTINGS) {
+        const change = this.change(snapshot, key, after);
+        const old = state.saved.findIndex((entry) => entry.key === key);
+        if (old >= 0 && !equal(change.before, state.saved[old].after)) state.saved.splice(old, 1);
+        if (!state.saved.some((entry) => entry.key === key)) {
+          const saved = structuredClone(change);
+          if (migrated && key.startsWith('color:') && unpack(saved.before) === '#00000000') saved.before = value(undefined);
+          state.saved.push(saved);
         }
+        if (!equal(change.before, change.after)) changes.push(change);
       }
       const html = render(state.base, state.imports, true, this.css);
       state.gradient = true;
       state.expected = hash(html);
-      await this.transaction(state, html, changes, hash(current));
-      const backup = state.migration.legacyBackup;
-      if (backup && path.dirname(backup) === path.dirname(this.workbench)) {
-        // Only the migrated session's verified backup is redundant now.
-        const original = await optional(backup);
-        if (original !== undefined && hash(original) === hash(state.base)) {
-          await fs.rm(backup).catch(() => {});
-        }
-      }
-      return {migrated, gradient: true};
-    });
+      return this.transaction(state, html, changes, hash(current), reapply ? 'reapply' : 'enable', snapshot);
+    }, reapply ? 'reapply' : 'enable', unsavedResources);
   }
-  async disable({restore = false} = {}) {
+  async disable({unsavedResources = []} = {}) {
     return this.locked(async () => {
       const state = await this.state();
-      if (!state) return {gradient: false, chooseTheme: restore};
+      if (!state) return {gradient: false};
+      const snapshot = await this.settings.snapshot(state.saved.filter((entry) => entry.key !== 'workbench.colorTheme'), unsavedResources);
       if (state.identity !== this.identity || state.profile !== this.profile) throw new Error('Use Reapply Background in the original profile before restoring this application version.');
       const current = await fs.readFile(this.workbench, 'utf8');
       if (hash(current) !== state.expected) throw new Error('The workbench was modified outside Iris. Nothing was overwritten.');
       const changes = [];
-      let chooseTheme = false;
       for (const entry of state.saved) {
-        if (entry.key === 'workbench.colorTheme' && !restore) continue;
-        if (entry.key === 'workbench.colorTheme' && unpack(entry.before) === 'Iris Nocturne') {
-          chooseTheme = restore && (await this.settings.read(entry.key)) === 'Iris Nocturne';
-          continue;
-        }
-        if (equal(value(await this.settings.read(entry.key)), entry.after)) {
-          changes.push(await this.change(entry.key, unpack(entry.before)));
+        if (entry.key === 'workbench.colorTheme') continue;
+        if (!equal(entry.before, entry.after) &&
+            equal(snapshot.fields.find((field) => field.key === entry.key).before, entry.after)) {
+          changes.push({key: entry.key, source: entry.source, before: entry.after, after: entry.before});
         }
       }
       const html = render(state.base, state.imports, false, this.css);
       state.gradient = false;
       state.expected = hash(html);
-      state.saved = restore ? [] : state.saved.filter((entry) => entry.key === 'workbench.colorTheme');
-      await this.transaction(state, html, changes, hash(current));
-      return {gradient: false, chooseTheme};
-    });
+      state.saved = [];
+      return this.transaction(state, html, changes, hash(current), 'disable', snapshot);
+    }, 'disable', unsavedResources);
   }
 }
-module.exports = {Background, CANVASES, hash, loadImports, render, value};
+module.exports = {Background, hash, loadImports, render, value};

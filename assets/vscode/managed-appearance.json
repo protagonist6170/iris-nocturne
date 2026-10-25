@@ -1,0 +1,12 @@
+{
+  "window.titleBarStyle": "custom",
+  "workbench.colorCustomizations": {
+    "[Iris Nocturne]": {
+      "terminal.background": "#00000000",
+      "minimap.background": "#00000000",
+      "editorGutter.background": "#00000000",
+      "notebook.cellEditorBackground": "#00000000",
+      "notebook.outputContainerBackgroundColor": "#00000000"
+    }
+  }
+}

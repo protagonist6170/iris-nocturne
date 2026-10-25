@@ -513,7 +513,9 @@ def _vsix(theme: bytes, stylesheet: bytes, settings: bytes) -> bytes:
             "extension/background/" + name: (
                 theme_source.THEME_DIR / "assets/vscode" / name
             ).read_bytes()
-            for name in ("extension.js", "background.js")
+            for name in (
+                "extension.js", "background.js", "managed-appearance.json"
+            )
         },
         "extension/background/settings.example.json": settings,
         "extension/images/icon.png": (
@@ -551,19 +553,12 @@ def resources(
     )
     for name, value in D_CHROME.items():
         css = css.replace("{{" + name + "}}", value)
-    settings = {
-        "workbench.colorTheme": "Iris Nocturne",
-        "window.titleBarStyle": "custom",
-        "workbench.colorCustomizations": {
-            "[Iris Nocturne]": {
-                "terminal.background": "#00000000",
-                "minimap.background": "#00000000",
-                "editorGutter.background": "#00000000",
-                "notebook.cellEditorBackground": "#00000000",
-                "notebook.outputContainerBackgroundColor": "#00000000",
-            },
-        },
-    }
+    appearance = json.loads(
+        (theme_source.THEME_DIR / "assets/vscode/managed-appearance.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    settings = {"workbench.colorTheme": "Iris Nocturne", **appearance}
     stylesheet = css.encode()
     settings_bytes = _json(settings)
     return {

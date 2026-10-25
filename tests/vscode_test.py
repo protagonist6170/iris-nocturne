@@ -50,7 +50,9 @@ class VscodeTest(unittest.TestCase):
             )
             self.assertEqual(manifest["main"], "./background/extension.js")
             self.assertEqual(manifest["extensionKind"], ["ui"])
-            for filename in ("extension.js", "background.js"):
+            for filename in (
+                "extension.js", "background.js", "managed-appearance.json"
+            ):
                 self.assertEqual(
                     archive.read("extension/background/" + filename),
                     (theme_source.THEME_DIR / "assets/vscode" / filename).read_bytes(),
@@ -106,7 +108,10 @@ class VscodeTest(unittest.TestCase):
     @unittest.skipUnless(shutil.which("node"), "Node.js is required for background transactions")
     def test_background_transactions_and_recovery(self):
         result = subprocess.run(
-            ["node", "--test", "tests/vscode_background_test.cjs"],
+            [
+                "node", "--test", "tests/vscode_background_test.cjs",
+                "tests/vscode_extension_test.cjs",
+            ],
             cwd=theme_source.THEME_DIR, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -190,6 +195,21 @@ class VscodeTest(unittest.TestCase):
         self.assertEqual(set(settings["workbench.colorCustomizations"]), {
             "[Iris Nocturne]",
         })
+        appearance = json.loads(
+            (theme_source.THEME_DIR / "assets/vscode/managed-appearance.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertNotIn("workbench.colorTheme", appearance)
+        self.assertEqual(
+            settings,
+            {"workbench.colorTheme": "Iris Nocturne", **appearance},
+        )
+        self.assertEqual(
+            len(appearance) - 1
+            + len(appearance["workbench.colorCustomizations"]["[Iris Nocturne]"]),
+            6,
+        )
         theme = json.loads(
             self.outputs[f"{vscode.EXPORT_DIR}/iris-nocturne-color-theme.json"]
         )

@@ -19,7 +19,7 @@ python3 -B -m unittest discover -s tests -p '*_test.py' -v
 | `theme_source_test.py` | Color values, ANSI palette, and syntax input validation |
 | `syntax_test.py` | TextMate rule order, category colors, and explicit empty font styles |
 | `build_test.py` | All 20 exports, shared XML, terminal-role isolation, and configuration preservation |
-| `vscode_test.py` | Reproducible VSIX and local runtime, 256-pixel PNG icon and manifest parity, bundled-resource and canonical README parity, background transactions and recovery, settings limited to Iris, shared syntax/semantics, ANSI, opaque native fallback, and native/CSS floating-surface agreement |
+| `vscode_test.py` | Reproducible VSIX and local runtime, 256-pixel PNG icon and manifest parity, bundled-resource and canonical README parity, background transactions, recovery and extension lifecycle, settings limited to Iris, shared syntax/semantics, ANSI, opaque native fallback, and native/CSS floating-surface agreement |
 | `textmate_integration_test.py` | Actual Python, Markdown, JSON, YAML, and TOML colors in an isolated bat cache |
 | `cli_adapters_test.py` | lsd/fd attribute precedence and icons, fzf option preservation, Zsh styles, and invalid-input failure before writes |
 
@@ -69,12 +69,59 @@ user-data directory, extensions, shared storage, and sample workspace. A profile
 alone is insufficient. The daily application, installed Iris, and settings must
 not be changed by validation.
 
-The Python suite also runs `node --test tests/vscode_background_test.cjs` when
-Node.js is available. These focused tests cover idempotence, conditional settings
-restoration, CSS migration order, JS rejection, missing resources/backups,
-configuration and post-write failures, interrupted transaction recovery,
-application locks, external modifications, and version-safe reapplication. All
-filesystem fixtures are temporary and removed after their tests.
+The Python suite also runs
+`node --test tests/vscode_background_test.cjs tests/vscode_extension_test.cjs`
+when Node.js is available. Background checks cover idempotence, conditional
+restoration, CSS migration/order, resource failures, application locks, version
+reapplication and read-only inspection. Fault injection exercises progress
+checkpoints, uncertain edits, partial file rollback and retries that must preserve
+later personal values and original backups.
+
+The extension tests run the shipped entry point and adapter with a controlled
+VS Code host. Each settings document has separate draft and disk contents;
+effective configuration and notifications advance only when explicitly delivered
+from saved contents. WorkspaceEdit preparation models the native active editor's
+minimization: unannotated empty edits disappear and lose their final version
+constraint, while metadata retains the constraint without changing text. Original
+edit counts determine the RPC result. Closing a document retains its old text
+and version; reopening creates a distinct model at the same URI. Production
+`document.save` and unguarded `configuration.update` calls are rejected by the host.
+
+Focused scenarios cover user drafts entered after edit application, manual saves
+that cannot awaken an old command, Restore/Enable interleavings, independent
+application/profile files, scope changes before configuration delivery, focus on
+an unrelated settings.json, and retargeted file identities. They also verify
+JSONC local edits, Reapply backups, startup recovery errors and pending cleanup
+notifications. The native theme remains outside background writes. All files
+live in temporary directories removed after the tests.
+
+Zero-delta Enable and Disable tests keep the model dirty while its fields appear
+to need no edits; both must reject without committing the background or deleting
+backups. Another test changes the scope of an unchanged managed field before
+re-running a review. Queue tests distinguish a command issued before a new review
+was ready from a fresh command after saving that only waits behind read-only
+theme checks. No new journal progress states are used for admission timing.
+Undo tests pause journal persistence after planning, perform a real edit and
+Undo, and assert identical text with two version increments. Both empty and
+nonempty deltas must reject that snapshot. Another zero-delta Disable test
+changes skipped fields at the same boundary and verifies that original backups
+survive for retry. Admission tests delay journal reads and save after commands
+were issued: neither an absent journal nor one consumed by an earlier Enable
+can admit an old request. Saved-review tests pause profile IO after application
+settings were checked, then either save a new managed value or enter a draft in
+the application document; both must retain the review without committing files.
+Native-preparation tests change an active document while the RPC is preparing
+both an empty delta and a partial edit with an unchanged routing document. They
+verify rejection across all resources and preserve original backups for retry.
+Close/reopen tests pause planning, stage document opens and saved-review reads;
+they verify that old closed references cannot approve an operation or overwrite
+the new model's draft. Already restored settings after restart need no empty RPC.
+
+The optional GUI validation fixture has an explicit user-save simulation for
+its isolated scenario commands: it checks that every document is under the
+validation user-data root and exactly matches the prepared review before saving.
+This helper is excluded from the distributed extension; runtime commands never
+save a settings document.
 
 Build, prepare a fresh root, and extract an official macOS Stable application
 archive under `app/`:
@@ -113,7 +160,7 @@ these **Iris Validation** scenarios:
 | Scenario | Inspect |
 |---|---|
 | Enable Background | Calls the packaged Iris command, checks retained CSP, then reloads the test window |
-| Restore Solid Fallback | Calls Restore Previous Appearance and checks original workbench hash and previous theme |
+| Restore Solid Fallback | Calls Restore Previous Appearance, checks the original workbench hash, and opens the native theme picker |
 | Migrate Legacy CSS | Patches through the actual old loader, migrates Iris plus surrounding CSS, switches themes to test automatic disable, then restores the clean workbench |
 | Open Split Editors / Open Diff | Gradient alignment, focus veil, selection and diff readability |
 | Open Notebook | Existing cells and output without starting a kernel |
@@ -127,6 +174,14 @@ TypeScript, Pylance, and clangd semantic tokens, Notebook output, full packaged
 CSS injection, CSP, migration order, configuration preservation, automatic
 theme-switch handling, and complete workbench restoration. Visible windows and
 successful installs alone do not establish a pass.
+
+Select Iris before running Enable Background or Migrate Legacy CSS. If Enable
+Background opens the native picker, select Iris and run the scenario again;
+the first invocation ends without applying the gradient. Restore Solid Fallback
+opens the native picker for your replacement theme. Migration validation checks
+automatic theme-switch handling before explicitly selecting Iris for its isolated
+cleanup, then returns the fixture to Light Modern. Production Iris never writes
+the native theme setting itself.
 
 A local `command.json` bridge accepts only a unique request ID and a command in
 the fixture's scenario registry. It cannot execute arbitrary VS Code commands.
@@ -142,7 +197,7 @@ on theme switch, personal-setting preservation, and byte-identical workbench
 restoration. Pylance 2026.4.1 emitted 68 Python semantic tokens, clangd 0.6.0
 emitted 34 C++ tokens, and TypeScript emitted 29 TSX tokens; the Notebook
 contained three cells and two existing outputs. The Python suite passed 17
-cases, including the Node runner’s six transaction/recovery cases.
+cases, including the Node transaction/recovery tests.
 Repeat [visual acceptance](#visual-acceptance) after VS Code updates because
 internal selectors are not a stable extension API.
 
