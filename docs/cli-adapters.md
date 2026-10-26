@@ -68,12 +68,13 @@ file-type coverage differs.
 
 ### Icon mapping and consumer limits
 
-Yazi and lsd share base language glyphs from `assets/yazi-icons.toml` and purpose
-rules from `assets/purpose-icons.toml`. Ordinary directories retain a folder;
+Yazi, lsd, and lazygit share base language glyphs from `assets/yazi-icons.toml`
+and purpose rules from `assets/purpose-icons.toml`. Ordinary directories in
+Yazi and lsd retain a folder;
 special directories use code, test, documentation, package, tools, and other
 purpose symbols. README, licenses, manifests, lockfiles, Docker, Git, environment,
 and tool configuration files also have purpose icons. Add or adjust named rules
-in the shared purpose table to update both consumers.
+in the shared purpose table to update all three consumers.
 
 `assets/lsd-icons.toml` covers all built-in filename and extension keys in lsd
 1.2.0 before the shared overrides; review new keys when upgrading. Equivalent
@@ -88,6 +89,29 @@ lsd colors the icon and filename together: a script can keep its language glyph
 while taking the executable color. Yazi supports separate icon colors, using
 palette roles for purpose icons and retained colors for other language glyphs.
 lsd has no hovered-folder state; both integrations use your installed Nerd Font.
+
+### lazygit shared icons
+
+The [lazygit overlay](applications.md#lazygit) uses the same resolved file,
+directory, and extension rules. Like lsd, it has a single filename table;
+directory purpose rules win same-name conflicts. Icons have their own colors,
+matching Yazi, while Git status text keeps lazygit's own colors. lsd instead
+colors the icon and filename together.
+
+lazygit 0.66.2 matches exact basenames case-sensitively, then lowercase final
+extensions. Its built-in filename rules precede extension overrides.
+`assets/lazygit-filenames.toml` records native and common spellings so the
+renderer can override these with shared rules; it contains no glyphs or colors.
+Update that list when upgrading lazygit or adding a mixed-case filename rule.
+For example, both `readme.md` and `README.md` use the documentation icon, and
+`Cargo.toml` uses the package icon rather than the native Rust icon.
+
+Yazi globs are omitted; common environment filenames remain explicit rules.
+Arbitrary mixed-case names are not enumerated. Unmatched files/folders,
+submodule and worktree fallbacks, expanded-folder states, and Git UI symbols
+retain native behavior. The native interface cannot replace generic default
+file/folder glyphs. The overlay enables Nerd Font 3 and file icons for both
+terminal and Snacks entrypoints without distributing any font files.
 
 The pinned interfaces are documented in lsd's [theme guide](https://github.com/lsd-rs/lsd/blob/v1.2.0/README.md#color-theme),
 [icon implementation](https://github.com/lsd-rs/lsd/blob/v1.2.0/src/icon.rs), and

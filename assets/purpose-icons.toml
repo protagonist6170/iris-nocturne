@@ -1,7 +1,7 @@
 # Iris Nocturne purpose icons, selected from the B icon study.
 # Each group supplies one Nerd Font glyph and a palette role. Named directories
-# and files are shared by Yazi and lsd; globs are supported only by Yazi.
-# Keep names lowercase: both consumers support case-insensitive name lookup.
+# and files are shared by Yazi, lsd, and lazygit; only Yazi supports globs.
+# Keep canonical names lowercase; lazygit adds explicit case-sensitive aliases.
 # Prefix file globs with **/ so they match files inside any directory.
 # No SVGs, font assets, or Material Icon Theme resources are bundled.
 

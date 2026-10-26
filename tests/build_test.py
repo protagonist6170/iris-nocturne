@@ -30,6 +30,7 @@ class BuildTest(unittest.TestCase):
                 ".config/nvim/lua/iris_nocturne/palette.lua",
                 ".claude/themes/iris-nocturne.json",
                 ".config/fzf/iris-nocturne.sh",
+                ".config/lazygit/themes/iris-nocturne.yml",
             },
         )
 
@@ -47,7 +48,7 @@ class BuildTest(unittest.TestCase):
             outputs = build.generate(source)
             self.assertEqual(config.read_text(encoding="utf-8"), original)
 
-        self.assertEqual(len(outputs), 20)
+        self.assertEqual(len(outputs), 21)
         self.assertEqual(
             {name.split("/", 1)[0] for name in outputs},
             {".config", ".codex", ".claude", "vscode"},

@@ -18,6 +18,7 @@ config-repository/
         ├── ghostty/themes/iris-nocturne
         ├── nvim/lua/iris_nocturne/palette.lua
         ├── yazi/flavors/iris-nocturne.yazi/
+        ├── lazygit/themes/iris-nocturne.yml
         ├── fzf/iris-nocturne.sh
         ├── ls-colors/iris-nocturne.sh
         └── zsh/themes/iris-nocturne.zsh

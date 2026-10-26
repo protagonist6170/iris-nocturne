@@ -14,6 +14,7 @@ from renderers import (
     fzf,
     ghostty,
     herdr,
+    lazygit,
     ls_colors,
     lsd,
     neovim,
@@ -85,6 +86,9 @@ def generate(source_home: pathlib.Path | None = None) -> dict[str, bytes]:
         ".config/fzf/iris-nocturne.sh": fzf.shell_colors(palette["colors"]),
         ".config/lsd/colors.yaml": lsd.color_theme(colors),
         ".config/lsd/icons.yaml": lsd.icon_theme(icons),
+        ".config/lazygit/themes/iris-nocturne.yml": lazygit.lazygit_theme(
+            palette["colors"], file_icons, theme_source.load_lazygit_filenames()
+        ),
         ".config/ls-colors/iris-nocturne.sh": ls_colors.shell_colors(colors),
         ".claude/themes/iris-nocturne.json": claude.claude_theme(
             palette["colors"], ansi

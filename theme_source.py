@@ -28,7 +28,7 @@ class FileIcon(TypedDict):
 
 
 def _file_icon(name: object, text: object, color: object) -> FileIcon:
-    """Validate a named glyph before it reaches either native renderer."""
+    """Validate a named glyph before it reaches native renderers."""
     if (
         not isinstance(name, str)
         or not name
@@ -47,8 +47,8 @@ def _file_icon(name: object, text: object, color: object) -> FileIcon:
 def load_file_icons(colors: dict[str, str]) -> dict[str, list[FileIcon]]:
     """Apply shared purpose rules over the retained language icon mappings.
 
-    Names are normalized for both consumers. Yazi additionally receives globs;
-    lsd uses the explicitly listed file and directory names instead.
+    Names are normalized for shared consumers. Yazi additionally receives globs;
+    lsd uses explicit names, and lazygit adds known case-sensitive spellings.
     """
     source = tomllib.loads(
         (THEME_DIR / "assets/yazi-icons.toml").read_text(encoding="utf-8")
@@ -159,6 +159,31 @@ def load_lsd_icons(
         "symlink-file": "\ueaee",
     }
     return icons
+
+
+def load_lazygit_filenames() -> list[str]:
+    """Load explicit native and common filename spellings for lazygit."""
+    source = tomllib.loads(
+        (THEME_DIR / "assets/lazygit-filenames.toml").read_text(
+            encoding="utf-8"
+        )
+    )
+    names = source.get("filenames")
+    if (
+        set(source) != {"filenames"}
+        or not isinstance(names, list)
+        or not all(
+            isinstance(name, str)
+            and name not in ("", ".", "..")
+            and name.isprintable()
+            and "/" not in name
+            and "\\" not in name
+            for name in names
+        )
+        or len(set(names)) != len(names)
+    ):
+        raise ValueError("lazygit filenames require unique plain basenames")
+    return names
 
 
 class TokenSettings(TypedDict):

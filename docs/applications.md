@@ -133,6 +133,161 @@ Context lines and hunk headers have no explicit background; headers include line
 numbers and syntax highlighting. Added/deleted lines use shared diff backgrounds,
 with bold word emphasis. Keep paging and feature selection in your Git config.
 
+## lazygit
+
+The adapter targets **lazygit 0.66.2**. Install the generated overlay in the
+directory reported by `lazygit --print-config-dir`:
+
+```sh
+lazygit_config_dir="$(lazygit --print-config-dir)"
+mkdir -p "$lazygit_config_dir/themes"
+cp dist/.config/lazygit/themes/iris-nocturne.yml \
+  "$lazygit_config_dir/themes/iris-nocturne.yml"
+lazygit --use-config-file="$lazygit_config_dir/config.yml,$lazygit_config_dir/themes/iris-nocturne.yml"
+```
+
+The example assumes an existing `config.yml`; otherwise list only the theme.
+On macOS the default directory can be under `~/Library/Application Support`;
+with `XDG_CONFIG_HOME` set, this local setup uses `~/.config/lazygit`.
+Files in `themes/` are not discovered automatically.
+
+### Colors and icons
+
+The selected A design uses bold `accent` (`#9DA9FF`) for active borders,
+`terminal_border` (`#584F8B`) for inactive borders, `terminal_raised` (`#37336E`)
+for active selected rows, and `terminal_surface` (`#2D2B60`) for inactive
+selections. Selection adds bold without replacing status foregrounds. Search
+borders use `warning`. Copied commit hashes use a `member` background with dark
+text. Main surfaces inherit the terminal.
+
+The overlay also supplies `markedBaseCommitBgColor`/`FgColor` as warning/dark,
+as exposed by the native theme interface. However, 0.66.2's commit list renders
+the rebase base marker with fixed ANSI yellow text instead of those fields.
+Copied-commit coloring applies to hashes, not entire rows; a cursor selection
+can take precedence. See the pinned
+[commit presentation](https://github.com/jesseduffield/lazygit/blob/v0.66.2/pkg/gui/presentation/commits.go).
+
+The overlay enables Nerd Font 3 and file icons; your terminal font must supply
+the glyphs. Language and purpose icons reuse the Yazi/lsd inputs, including
+explicit spellings such as `README.md`, `Cargo.toml`, and `CMakeLists.txt`.
+Unmatched names keep native fallbacks. See
+[icon capabilities](cli-adapters.md#icon-mapping-and-consumer-limits) for details.
+Keep layout, keybindings, editor selection, and diff renderers in the base config.
+
+### Shell loading
+
+`--use-config-file` loads comma-separated files in order. For normal shell use,
+the same list can be supplied through `LG_CONFIG_FILE`. This Zsh example
+ignores empty entries, removes every existing Iris entry, and appends Iris once.
+The relative order of all other files is preserved. Iris loads last and can
+override matching theme fields in custom overlays. An unset or empty list uses
+the base config if readable; an existing custom list does not acquire an extra
+base entry. An unavailable theme leaves the environment unchanged.
+
+```zsh
+lazygit_config_dir="$(lazygit --print-config-dir)"
+if [[ -r "$lazygit_config_dir/themes/iris-nocturne.yml" ]]; then
+  () {
+    local theme="$lazygit_config_dir/themes/iris-nocturne.yml"
+    local existing="${LG_CONFIG_FILE-}" config
+    local -a configs=("${(@s:,:)existing}") overlays=()
+    configs=("${(@)configs:#}")
+    if (( ${#configs} == 0 )) &&
+        [[ -r "$lazygit_config_dir/config.yml" ]]; then
+      configs=("$lazygit_config_dir/config.yml")
+    fi
+    for config in "${configs[@]}"; do
+      [[ "$config" == "$theme" ]] || overlays+=("$config")
+    done
+    overlays+=("$theme")
+    export LG_CONFIG_FILE="${(j:,:)overlays}"
+  }
+fi
+```
+
+After changing the loading policy, restart Lazygit from a new configured shell.
+Restart Neovim too so its terminal job environment is recomputed.
+
+All listed files must exist. The explicit flag takes precedence over the
+environment list. Commas delimit paths and cannot be escaped in this interface.
+Existing `gui.darkTheme`/`gui.lightTheme` fields override corresponding
+`gui.theme` fields; repository configuration may also override global settings.
+Check these if a color does not match.
+
+### Neovim / Snacks
+
+Snacks normally generates a theme and appends it to the config list. Disable
+that generation and pass the same files through the terminal job environment.
+This LazyVim override preserves the root/cwd and history entrypoints:
+
+```lua
+return {
+  {
+    "folke/snacks.nvim",
+    opts = function(_, opts)
+      local result = vim.fn.system({ "lazygit", "--print-config-dir" })
+      assert(vim.v.shell_error == 0, "Cannot find the lazygit config directory")
+      local directory = vim.trim(result)
+      local theme = directory .. "/themes/iris-nocturne.yml"
+      assert(vim.fn.filereadable(theme) == 1, "Install the Iris lazygit theme first")
+      opts.lazygit = opts.lazygit or {}
+      local environment = opts.lazygit.env or {}
+      local existing = environment.LG_CONFIG_FILE or vim.env.LG_CONFIG_FILE or ""
+      local configs = vim.split(existing, ",", { trimempty = true })
+      if #configs == 0 and vim.fn.filereadable(directory .. "/config.yml") == 1 then
+        configs = { directory .. "/config.yml" }
+      end
+      configs = vim.tbl_filter(function(path)
+        return path ~= "" and path ~= theme
+      end, configs)
+      table.insert(configs, theme)
+      opts.lazygit.configure = false
+      opts.lazygit.env = vim.tbl_extend("force", environment, {
+        LG_CONFIG_FILE = table.concat(configs, ","),
+      })
+    end,
+  },
+}
+```
+
+Place this after existing Snacks settings. It moves Iris to the end without
+changing `vim.env.LG_CONFIG_FILE`. Restart Neovim when migrating from a session
+that already opened Snacks lazygit: the old generated path can remain in that
+process environment. Remove that stale cache-file path from any saved list.
+Do not set Snacks `theme_path` to the Iris file, which it could overwrite.
+
+Disabling `configure` also disables Snacks' editor preset injection. Retain
+this in the base config to edit in the parent Neovim instance:
+
+```yaml
+os:
+  editPreset: nvim-remote
+```
+
+### Diffs and restoration
+
+Install [bat](#bat) and [delta](#delta), rebuild bat's cache, and select
+`delta.features = iris-nocturne` in Git. The theme leaves this base config alone:
+
+```yaml
+git:
+  diffRenderers:
+    - name: delta
+      command: delta --paging=never
+    - name: raw
+      type: rawGit
+```
+
+Use `|` to cycle renderers. delta provides syntax and diff backgrounds; rawGit
+uses native Git colors and the terminal ANSI palette. Exact HEX colors require
+a true-color terminal. ANSI and non-theme UI colors remain outside the overlay.
+
+Remove Iris from flag/environment lists to stop using it. In Snacks, remove the
+override or restore `configure = true` to follow the Neovim theme again, and
+remove Iris from inherited lists too. The file can remain installed. References:
+[configuration](https://github.com/jesseduffield/lazygit/blob/v0.66.2/docs/Config.md),
+[diff renderers](https://github.com/jesseduffield/lazygit/blob/v0.66.2/docs/Custom_DiffRenderers.md).
+
 ## Starship
 
 The generator maintains `[palettes.iris-nocturne]` inside `.config/starship.toml`.
@@ -157,7 +312,8 @@ Active rows, selections, menus, and other panels keep distinct backgrounds.
 
 Herdr and Claude Code use all four `terminal_*` roles: solid purple-blue surfaces
 that complement the terminal gradient. Neovim and fzf share `terminal_raised` for
-their current rows; other exports exclude these roles.
+their current rows. lazygit also uses `terminal_surface` and `terminal_border`
+for inactive selections and panel borders; other exports exclude these roles.
 
 | Herdr token | Role and use |
 |---|---|

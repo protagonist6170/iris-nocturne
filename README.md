@@ -17,7 +17,7 @@ python3 build.py --output-root dist
 python3 build.py --output-root dist --check
 ```
 
-The export contains **20 files**: 16 home-relative configuration resources under
+The export contains **21 files**: 17 home-relative configuration resources under
 `.config/`, `.codex/` and `.claude/`, plus four VS Code delivery files under
 `vscode/`. Install the configuration resources in their matching home paths;
 install the VSIX through VS Code. Generate `dist/` as needed and keep it out of
@@ -46,6 +46,7 @@ All output paths below are relative to the export root.
 | Yazi | `.config/yazi/flavors/iris-nocturne.yazi/{flavor.toml,tmtheme.xml}` | [Flavor and icons](docs/applications.md#yazi) |
 | btop | `.config/btop/themes/iris-nocturne.theme` | [Monitor colors](docs/applications.md#btop) |
 | delta | `.config/git/themes/iris-nocturne.gitconfig` | [Diff feature](docs/applications.md#delta) |
+| lazygit | `.config/lazygit/themes/iris-nocturne.yml` | [UI, shared icons, and Snacks](docs/applications.md#lazygit) |
 | Starship | Managed palette in `.config/starship.toml` | [Prompt palette](docs/applications.md#starship) |
 | Herdr | Managed colors in `.config/herdr/config.toml` | [Custom overrides](docs/applications.md#herdr) |
 | Codex CLI | `.codex/themes/iris-nocturne.tmTheme` | [Syntax theme](docs/applications.md#codex-cli) |
@@ -73,9 +74,10 @@ with solid backgrounds. Follow the
 and Finder. The same guide ships in the VSIX. Development checks and isolated
 validation are documented in the [validation guide](docs/validation.md#vs-code-integration).
 
-Yazi and lsd share [purpose icons](assets/purpose-icons.toml) for special
-directories and project files. Ordinary directories keep a folder glyph;
-source files retain their language icons. See the
+Yazi, lsd, and lazygit share [purpose icons](assets/purpose-icons.toml) for special
+directories and project files; source files retain their language icons.
+Yazi and lsd also override ordinary folder glyphs. lazygit keeps its native
+fallback for unmatched files and folders. See the
 [icon guide](docs/cli-adapters.md#icon-mapping-and-consumer-limits) for consumer
 differences and how to extend the mappings.
 
@@ -113,8 +115,8 @@ Run the test suite from the project root:
 python3 -B -m unittest discover -s tests -p '*_test.py'
 ```
 
-Integration checks use installed tools. Neovim checks run separately and require
-a complete configuration copy and parser/query runtimes. See
+Integration checks use installed tools. Neovim syntax checks run separately and
+require a complete configuration copy and parser/query runtimes. See
 [validation](docs/validation.md) for dependencies, skips, and commands.
 
 To add an application:

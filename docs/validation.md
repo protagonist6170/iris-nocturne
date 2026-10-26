@@ -18,10 +18,11 @@ python3 -B -m unittest discover -s tests -p '*_test.py' -v
 |---|---|
 | `theme_source_test.py` | Color values, ANSI palette, and syntax input validation |
 | `syntax_test.py` | TextMate rule order, category colors, and explicit empty font styles |
-| `build_test.py` | All 20 exports, shared XML, terminal-role isolation, and configuration preservation |
+| `build_test.py` | All 21 exports, shared XML, terminal-role isolation, and configuration preservation |
 | `vscode_test.py` | Reproducible VSIX and local runtime, 256-pixel PNG icon and manifest parity, bundled-resource and canonical README parity, background transactions, recovery and extension lifecycle, settings limited to Iris, shared syntax/semantics, ANSI, opaque native fallback, and native/CSS floating-surface agreement |
 | `textmate_integration_test.py` | Actual Python, Markdown, JSON, YAML, and TOML colors in an isolated bat cache |
 | `cli_adapters_test.py` | lsd/fd attribute precedence and icons, fzf option preservation, Zsh styles, and invalid-input failure before writes |
+| `lazygit_test.py` | A palette, shared icons and aliases, invalid-input failure before writes, native PTY/delta rendering, and isolated Snacks parent editing |
 
 Integration coverage depends on tools available through `PATH`:
 
@@ -33,6 +34,8 @@ Integration coverage depends on tools available through `PATH`:
 | fd | Omit fd checks within the file-tool test; the rest of that test still runs |
 | fzf and zsh | Skip fzf option integration checks if either is missing |
 | zsh | Skip the standalone Zsh style-loading check |
+| lazygit, git, bat, delta, and a POSIX PTY | Skip native lazygit/delta checks when tools are unavailable; PTY access is required when running them |
+| Neovim and an installed Snacks runtime | Skip Snacks checks if unavailable; set `IRIS_SNACKS_PATH` for a nonstandard plugin location |
 
 Read the skip messages: a passing suite does not verify unavailable tools. bat
 uses an isolated cache and disables its config file; Zsh runs with `-f`.
@@ -51,7 +54,7 @@ Build and compare the exports in an empty temporary directory:
 )
 ```
 
-The build produces 16 configuration resources and four `vscode/` delivery files;
+The build produces 17 configuration resources and four `vscode/` delivery files;
 the Python suite checks this split and identical bat, Yazi, and Codex CLI XML.
 `--check` compares each complete file against its
 expected bytes and returns nonzero for missing or different files. It ignores
@@ -61,6 +64,60 @@ To validate full Starship or Herdr files against an existing mirror, supply
 `--source-root` as described in [merging configuration blocks](applications.md#merging-configuration-blocks).
 Even formatting changes inside a generated block produce a mismatch. Edit the
 shared inputs and regenerate to change colors.
+
+## lazygit integration
+
+Run the focused checks with the installed native tools:
+
+```sh
+python3 -B -m unittest discover -s tests -p 'lazygit_test.py' -v
+```
+
+The native test creates its own HOME, XDG directories, Git config, bat cache,
+and repository. It loads the generated overlay after a base config, checks
+actual color escapes and shared glyphs, searches for README, verifies Iris
+delta backgrounds and word emphasis, then switches to rawGit word diff.
+It disables auto-fetch and update checks. `lazygit --config` prints defaults
+and is not evidence that a theme loaded. A sandbox denying `/dev/tty` must allow
+the isolated PTY check; do not silently treat that failure as a successful check.
+
+The Snacks test copies the installed plugin runtime into a temporary directory
+and starts Neovim with `-u NONE`. It checks real lazygit output, unchanged parent
+environment, absence of a generated overriding theme, and `e` opening the file
+in the same Neovim server. The cwd, log, and file-history entrypoint arguments
+are checked separately. No LazyVim bootstrap, plugin updates, daily Neovim
+configuration, or user caches are loaded. For a nonstandard plugin installation:
+
+```sh
+IRIS_SNACKS_PATH=/path/to/snacks.nvim \
+  python3 -B -m unittest discover -s tests -p 'lazygit_test.py' -v
+```
+
+The dotfiles checkout also provides a focused loading-order check. Run it
+from that checkout without loading daily Neovim configuration or plugins:
+
+```sh
+nvim --headless -u NONE -i NONE -l tests/lazygit_overlays.lua
+```
+
+It uses temporary HOME and XDG directories and calls the actual Zsh environment
+module and Neovim override. It compares both entrypoints for unset/empty lists,
+empty entries, Iris in different positions, repeated Iris entries, paths with
+spaces, and missing files. Other entries keep their relative order, Iris appears
+once at the end, and the Neovim parent environment stays unchanged.
+
+Validated versions on macOS: lazygit **0.66.2**, Neovim **0.12.6**, Snacks
+**2.31.0** (commit `882c996cf28183f4d63640de0b4c02ec886d01f2`), delta **0.20.1**,
+and bat **0.26.1**. The integration does not claim an older minimum version.
+The native checks require real terminal access and use the standard library.
+Also review focus changes, search, copied/rebase-marked commits, modal dialogs,
+narrow windows and staged/unstaged split diffs in the terminal.
+
+The 2026-10-26 isolated run passed all 22 Python cases without skips. Additional
+PTY acceptance covered staged/unstaged split diffs, copied commit hash colors,
+the native rebase annotation, the help popup, and resizing to 92 columns.
+The rebase annotation uses native ANSI yellow in 0.66.2, rather than the exposed
+marked-base background fields; see [rendering limits](applications.md#colors-and-icons).
 
 ## VS Code integration
 
@@ -281,6 +338,7 @@ changing integration settings, review the relevant applications:
 | fzf and fzf-tab | Matches, current row, multi-selection, previews, and colored completion filenames |
 | Zsh | Actual command-line highlighting and autosuggestions |
 | bat and delta | Rendered code and diffs |
+| lazygit | A borders/selected rows, preserved status foregrounds, shared icons and case aliases, search and commit markers, narrow/split diff views, delta/rawGit switching, and Snacks editor return |
 | Starship | Prompt colors with the existing module layout |
 | btop and Herdr | Panel layers, active states, and transparency |
 | Codex CLI and Claude Code | Theme selection and the syntax/interface areas each format supports |
