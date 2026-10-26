@@ -257,6 +257,50 @@ class VscodeTest(unittest.TestCase):
         self.assertEqual(theme["statusBarItem.prominentBackground"], "#2C3550")
         self.assertEqual(theme["statusBarItem.prominentHoverBackground"], "#38415D")
 
+    def test_tree_surfaces_have_solid_fallbacks_and_distinct_gradient_states(self):
+        theme = json.loads(
+            self.outputs[f"{vscode.EXPORT_DIR}/iris-nocturne-color-theme.json"]
+        )["colors"]
+        css = self.outputs[f"{vscode.EXPORT_DIR}/iris-nocturne.css"].decode()
+        for region in ("sideBar", "panel"):
+            with self.subTest(region=region):
+                self.assertEqual(
+                    theme[f"{region}StickyScroll.background"],
+                    self.palette["colors"]["surface"],
+                )
+                self.assertEqual(
+                    theme[f"{region}SectionHeader.background"],
+                    self.palette["colors"]["raised"],
+                )
+                self.assertEqual(
+                    theme[f"{region}StickyScroll.border"], "#A7A1CF3B"
+                )
+                self.assertEqual(
+                    theme[f"{region}StickyScroll.shadow"], "#00000000"
+                )
+        for name, color in {
+            "tree.indentGuidesStroke": "#B1B6D040",
+            "tree.inactiveIndentGuidesStroke": "#B1B6D01F",
+            "multiDiffEditor.headerBackground": "#302B57",
+            "multiDiffEditor.border": "#45516D",
+            "terminalStickyScroll.background": "#2C3550",
+            "terminalStickyScrollHover.background": "#38415D",
+        }.items():
+            with self.subTest(color=name):
+                self.assertEqual(theme[name], color)
+        # Inspect the exported stylesheet, including expansion of every state.
+        states = set(re.findall(
+            r"--iris-row-state:\s*(#[0-9A-Fa-f]+)", css
+        ))
+        self.assertEqual(states, {
+            "#A8A2EC1C", "#9DA9FF30", "#9DA9FF18", "#9DA9FF24",
+            "#9DA9FF40",
+        })
+        self.assertNotIn("{{", css)
+        # Scoped tree colors must not recolor floating list widgets globally.
+        self.assertEqual(theme["list.hoverBackground"], "#38415D")
+        self.assertEqual(theme["quickInputList.focusBackground"], "#363D70")
+
 
 if __name__ == "__main__":
     unittest.main()

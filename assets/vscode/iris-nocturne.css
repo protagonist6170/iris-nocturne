@@ -38,11 +38,13 @@
 
 /* Regions share viewport coordinates, so each starts at its actual height. */
 .monaco-workbench .part:is(.sidebar, .auxiliarybar, .activitybar) {
-  background: var(--iris-sidebar) 0 0 / 100% 100vh fixed no-repeat !important;
+  --iris-region-gradient: var(--iris-sidebar);
+  background: var(--iris-region-gradient) 0 0 / 100% 100vh fixed no-repeat !important;
 }
 
 .monaco-workbench .part.panel {
-  background: var(--iris-panel) 0 0 / 100% 100vh fixed no-repeat !important;
+  --iris-region-gradient: var(--iris-panel);
+  background: var(--iris-region-gradient) 0 0 / 100% 100vh fixed no-repeat !important;
 }
 
 .monaco-workbench .part:is(.editor, .titlebar, .statusbar),
@@ -67,15 +69,100 @@
   background-color: {{TITLEBAR}} !important;
 }
 
-/* Share hover colors across the primary sidebar without changing other lists. */
-.monaco-workbench .part.sidebar {
-  --vscode-list-hoverBackground: {{SIDEBAR_HOVER}} !important;
-  --vscode-toolbar-hoverBackground: {{SIDEBAR_HOVER}} !important;
+/* Ordinary section headers reveal the region; pinned tree rows must cover it. */
+.monaco-workbench .part:is(.sidebar, .auxiliarybar, .panel) .monaco-pane-view .pane > .pane-header {
+  background-color: transparent !important;
+
+  &:hover {
+    background-color: {{TREE_HOVER}} !important;
+  }
 }
 
-.monaco-workbench .part.sidebar .monaco-list-row:hover:not(.selected):not(.focused),
-.monaco-workbench .part.sidebar .monaco-pane-view .pane > .pane-header:hover {
-  background-color: {{SIDEBAR_HOVER}} !important;
+/* Only native trees opt in. Lists inside popups and Notebook keep their own
+ * surfaces. VS Code also emits literal-color list styles, so changing its CSS
+ * variables alone cannot cover these rows. Each row paints one state layer.
+ */
+.monaco-workbench .part:is(.sidebar, .auxiliarybar, .panel) .monaco-list:has(> .monaco-scrollable-element > .monaco-list-rows > .monaco-list-row > .monaco-tl-row):not(:is(.monaco-menu-container, .quick-input-widget, .notebookOverlay, .monaco-hover, .suggest-widget, .peekview-widget, .action-widget, .monaco-select-box-dropdown-container) *) {
+  --iris-list-state: transparent;
+  background: var(--iris-list-state) !important;
+
+  & > .monaco-scrollable-element > .monaco-list-rows {
+    background: transparent !important;
+  }
+
+  & > .monaco-scrollable-element > :is(.monaco-list-rows, .monaco-tree-sticky-container) > .monaco-list-row {
+    --iris-row-state: transparent;
+    background: var(--iris-row-state) !important;
+
+    &:hover:not(.force-no-hover) {
+      --iris-row-state: {{TREE_HOVER}};
+    }
+
+    &.selected {
+      --iris-row-state: {{TREE_INACTIVE_SELECTION}};
+    }
+  }
+
+  &:focus-within > .monaco-scrollable-element > :is(.monaco-list-rows, .monaco-tree-sticky-container) > .monaco-list-row.focused:not(.selected) {
+    --iris-row-state: {{TREE_FOCUS}};
+  }
+
+  &:focus-within > .monaco-scrollable-element > :is(.monaco-list-rows, .monaco-tree-sticky-container) > .monaco-list-row.selected {
+    --iris-row-state: {{TREE_SELECTION}};
+  }
+
+  &:focus > .monaco-scrollable-element > .monaco-list-rows > .monaco-list-row.focused,
+  &.sticky-scroll-focused > .monaco-scrollable-element > .monaco-tree-sticky-container:focus > .monaco-list-row.focused {
+    outline: 1px solid {{TREE_FOCUS_BORDER}} !important;
+    outline-offset: -1px;
+  }
+
+  & > .monaco-scrollable-element > .monaco-tree-sticky-container {
+    background: var(--iris-region-gradient) 0 0 / 100% 100vh fixed no-repeat !important;
+    border-bottom: 1px solid {{TREE_STICKY_BORDER}} !important;
+  }
+
+  & > .monaco-scrollable-element > .monaco-tree-sticky-container > .monaco-tree-sticky-row {
+    background: linear-gradient(var(--iris-row-state), var(--iris-row-state)),
+      var(--iris-region-gradient) 0 0 / 100% 100vh fixed no-repeat !important;
+  }
+
+  & > .monaco-scrollable-element > .monaco-tree-sticky-container > .monaco-tree-sticky-container-shadow {
+    box-shadow: none !important;
+  }
+
+  /* Container drops paint once behind ordinary rows. Pinned rows have an
+   * opaque base, so they repeat only that same single state layer above it.
+   */
+  &.drop-target {
+    --iris-list-state: {{TREE_DROP}};
+  }
+
+  & > .monaco-scrollable-element > .monaco-list-rows.drop-target {
+    background: {{TREE_DROP}} !important;
+  }
+
+  &.drop-target > .monaco-scrollable-element > :is(.monaco-list-rows, .monaco-tree-sticky-container) > .monaco-list-row,
+  & > .monaco-scrollable-element > .monaco-list-rows.drop-target > .monaco-list-row {
+    --iris-row-state: transparent !important;
+  }
+
+  &:not(.drop-target) > .monaco-scrollable-element > .monaco-list-rows:not(.drop-target) > .monaco-list-row.drop-target,
+  & > .monaco-scrollable-element > .monaco-tree-sticky-container > .monaco-tree-sticky-row.drop-target,
+  &.drop-target > .monaco-scrollable-element > .monaco-tree-sticky-container > .monaco-tree-sticky-row {
+    --iris-row-state: {{TREE_DROP}} !important;
+  }
+
+  &.drop-target > .monaco-scrollable-element > .monaco-list-rows.drop-target {
+    background: transparent !important;
+  }
+
+  & > .monaco-scrollable-element > .monaco-list-rows.drop-target-before > .monaco-list-row:first-child::before,
+  & > .monaco-scrollable-element > .monaco-list-rows > .monaco-list-row.drop-target-before::before,
+  & > .monaco-scrollable-element > .monaco-list-rows.drop-target-after > .monaco-list-row:last-child::after,
+  & > .monaco-scrollable-element > .monaco-list-rows > .monaco-list-row.drop-target-after::after {
+    background-color: {{TREE_FOCUS_BORDER}} !important;
+  }
 }
 
 /* Match the approved purple chrome while preserving native tab states/layout. */
@@ -147,8 +234,51 @@
   background-color: var(--vscode-peekViewEditor-background) !important;
 }
 
-/* Widgets keep a solid surface even when nested inside an editor. */
-.monaco-workbench :is(.quick-input-widget, .monaco-menu-container, .monaco-dialog-box, .monaco-hover, .monaco-resizable-hover, .notifications-center, .notification-toast),
+/* These pinned headers reuse canvas colors rather than editorStickyScroll's
+ * opaque surface. Keep their scrolling content covered as well.
+ */
+.monaco-workbench .notebookOverlay .notebook-sticky-scroll-container,
+.monaco-workbench .part:is(.sidebar, .auxiliarybar, .panel) .output-view .sticky-widget {
+  background-color: {{SIDEBAR_TITLE}} !important;
+}
+
+/* Onboarding reuses the editor canvas color for its card and nested controls.
+ * Restore that role at the card boundary; the outer blurred veil stays native.
+ */
+.monaco-workbench .onboarding-a-card {
+  --vscode-editor-background: {{FLOATING_SURFACE}} !important;
+}
+
+/* Newer multi-diff header modes also use the transparent sidebar/editor roles.
+ * Cover both layers so pinned file titles remain opaque in every mode.
+ */
+.monaco-workbench .part.editor .multiDiffEditor .multiDiffEntry > .header,
+.monaco-workbench .part.editor .multiDiffEditor .multiDiffEntry > .header > .header-content {
+  background: {{SIDEBAR_TITLE}} !important;
+}
+
+.monaco-workbench .part.editor .multiDiffEditor .multiDiffEntry > .header > .header-content {
+  border-color: {{FLOATING_BORDER}} !important;
+}
+
+/* Canvas-role consumers and native glass popups need the same solid backing
+ * as regular dialogs. Keep this on the floating root, not its whole overlay.
+ */
+.monaco-workbench :is(
+  .onboarding-a-card,
+  .quick-input-widget,
+  .action-widget,
+  .monaco-menu-container,
+  .monaco-dialog-box,
+  .monaco-hover,
+  .monaco-resizable-hover,
+  .notifications-center,
+  .notification-toast,
+  .inline-chat-content-widget,
+  .editor-dictation-widget,
+  .terminal-voice,
+  .browser-overlay-paused-message
+),
 .monaco-workbench .part.editor :is(.suggest-widget, .monaco-hover, .monaco-editor .find-widget, .editor-widget) {
   --vscode-toolbar-hoverBackground: {{FLOATING_HOVER}} !important;
   background-color: var(--vscode-editorWidget-background) !important;

@@ -260,7 +260,7 @@ internal selectors are not a stable extension API.
 
 After verification, restore the test application, close it, and remove its root,
 archive and reports. Keep reusable fixture source, not screenshots from every
-run. `dist/` contains only the current 20 generated exports. Recovery records
+run. Keep only the current generated exports in `dist/`. Recovery records
 in Iris’s local extension storage are functional data and must remain while Iris
 manages the background. The application-side `.iris-nocturne/` directory is the
 shared lock location, not the settings or workbench backup store.
@@ -273,17 +273,60 @@ with it disabled:
 | Area | Acceptance criteria |
 |---|---|
 | Editor groups | Single and split views share gradient progress; switching focus moves the inactive veil without intercepting input |
-| Hover states | Primary-sidebar rows and section headers, common toolbars, and unselected activity-bar icons use `#37365F`; selection and focus remain distinct |
-| Sticky Scroll | Pinned code and line numbers use the coordinated opaque background |
-| Floating content | Settings JSON, Settings UI, modal editors, Peek, suggestions, hovers, find, command input, menus, and notifications cover underlying code |
+| Native trees and section headers | Primary sidebar, secondary sidebar, and panel share transparent ordinary rows and section headers; hover uses `#A8A2EC1C`, active selection `#9DA9FF30`, inactive selection `#9DA9FF18`, and keyboard-only focus `#9DA9FF24` with the iris focus outline. Hover must not replace selection |
+| Tree Sticky Scroll | SCM Changes and Explorer folder headers, including multiple pinned ancestors, paint the same opaque viewport-aligned gradient as their region (`0 0 / 100% 100vh fixed no-repeat`). No deep solid stripe, scrolling text bleed, or dark shadow; a thin `#A7A1CF3B` separator remains. Repeat in the secondary sidebar and with the tree moved to the panel |
+| Tree drag and drop | Target feedback uses one `#9DA9FF40` layer, including selected targets and list/container targets, with iris insertion lines. Pinned targets retain their opaque gradient; active/inactive indentation guides use `#B1B6D040`/`#B1B6D01F` |
+| Editor Sticky Scroll | Pinned code and line numbers retain the coordinated opaque background; editor hover behavior is unchanged |
+| Other hover states | Common toolbars and unselected activity-bar icons retain `#37365F`; menus, quick input, suggestions, embedded Peek trees, Notebook, and extension webviews do not inherit the tree overrides |
+| Multi-file Diff | Headers use opaque `#302B57` and `#45516D` borders; inserted/deleted lines retain their semantic colors |
+| Floating content | Settings JSON, Settings UI, modal editors, Peek, suggestions, hovers, find, command input, action lists, menus, notifications, inline-chat affordances, editor/terminal voice widgets, and the browser pause message cover underlying content |
+| Welcome onboarding | The card uses opaque `#2C3550`, including the editor-background role inherited by its nested controls. The outer `#0006` overlay and 8px blur remain native; blurred workbench content must not show through the card |
 | Code | Python, C++, TS/TSX, Markdown, and configuration files preserve shared syntax categories and readable diagnostics and diffs |
-| Terminal | ANSI colors, background-colored output, selection, and the panel gradient remain legible |
-| Notebook | Code cells, focus and selection boundaries, Markdown, and existing output remain readable |
-| Window changes | Resizing and changing panel visibility preserve gradient alignment and usable controls |
+| Terminal | ANSI colors, background-colored output, selection, and the panel gradient remain legible. Terminal Sticky Scroll keeps opaque `#2C3550` with `#38415D` hover |
+| Notebook and Output Sticky Scroll | Notebook heading and Output pinned headers use opaque `#302B57`, matching editor Sticky Scroll. Other Notebook cells, focus/selection boundaries, Markdown, and existing output remain readable |
+| Window changes | Resizing, changing panel height/visibility, scrolling, and relocating views preserve gradient alignment and usable controls |
+| Solid fallback | With the gradient disabled, side/panel fixed tree headers use `surface` and section-header theme tokens use `raised`; selection, focus, and native popups remain usable. VS Code 1.143.1 Modern UI paints ordinary section headers with their region's `surface` instead |
 
 A successful installation or byte comparison does not verify rendering. Repeat
 visual review after VS Code upgrades because DOM selectors are not a stable
 extension API.
+
+In VS Code 1.143.1, Modern UI's native `!important` section-header rules use
+`sideBar.background` or `panel.background`, overriding the section-header theme
+tokens in solid mode. Verify those tokens and the actual regional surface
+separately. The optional gradient CSS explicitly handles these headers; the
+native fallback does not require CSS injection.
+
+Native Modern UI may also paint popup backgrounds in a frosted-glass `::before`
+layer while the popup element itself is transparent. Inspect that backing layer
+and the theme color separately in solid mode. Gradient mode keeps its existing
+opaque popup surfaces.
+
+#### Floating-surface regression check
+
+Launch the isolated application with `--remote-debugging-port=9333`, install the
+generated Iris package, and enable its gradient. A fresh profile shows the native
+welcome card. With Playwright available in the validation environment, run:
+
+```sh
+node tests/vscode_integration/surfaces.cjs \
+  --root "$sandbox" --output "$sandbox/results/surfaces" --require-onboarding
+```
+
+If Playwright is bundled outside the checkout, set `NODE_PATH` to that environment's
+`node_modules` directory. It is an optional validation dependency and is not
+packaged with Iris. Omit `--require-onboarding` to check only the inert fixtures
+after the welcome card has been dismissed.
+
+The script checks the real welcome card and its backdrop. It also constructs
+inert native-class fixtures inside the running workbench, so VS Code's installed
+CSS and the generated Iris CSS determine their actual computed backgrounds.
+These cover dictation, inline chat, terminal voice, action lists, browser pause
+messages, Notebook/Output pinned headers, and the existing modal-editor exception.
+No microphone capture, account sign-in, or assistant request is started. These
+fixtures validate styling, not those features' interaction flows. The ordinary
+editor canvas is a negative control and must remain transparent. Fixtures are
+removed after inspection, and reports and screenshots go only to `--output`.
 
 ## Neovim integration
 
@@ -332,7 +375,7 @@ changing integration settings, review the relevant applications:
 | Application | Inspect |
 |---|---|
 | Ghostty | Foreground, cursor, selection, ANSI colors, and optional static background |
-| VS Code | D gradients, split focus, sidebar hover, Sticky Scroll, opaque settings/modal/Peek/widgets, terminal and Notebook; repeat with CSS disabled |
+| VS Code | D gradients, split focus, primary/secondary/panel tree states and Sticky Scroll, drag targets, editor Sticky Scroll, multi-file Diff, opaque settings/modal/Peek/widgets, terminal Sticky Scroll and Notebook; repeat with CSS disabled |
 | Neovim | Text, syntax, active/inactive statuslines, plugin interfaces, transparency, and switching to/from the fallback theme |
 | Yazi and lsd | Directory and language icons, file categories, symlinks, executable states, and Yazi statusline mode colors |
 | fzf and fzf-tab | Matches, current row, multi-selection, previews, and colored completion filenames |
