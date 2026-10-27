@@ -17,12 +17,16 @@ python3 -B -m unittest discover -s tests -p '*_test.py' -v
 | Test file | Coverage |
 |---|---|
 | `theme_source_test.py` | Color values, ANSI palette, and syntax input validation |
-| `syntax_test.py` | TextMate rule order, category colors, and explicit empty font styles |
-| `build_test.py` | All 21 exports, shared XML, terminal-role isolation, CLI surface colors, and configuration preservation |
+| `syntax_test.py` | TextMate rule order, category-to-palette roles using distinct test colors, and explicit empty font styles |
+| `build_test.py` | VS Code delivery files, shared XML, representative terminal-role isolation and export mappings, TOML parsing, and configuration preservation |
 | `vscode_test.py` | Reproducible VSIX and local runtime, 256-pixel PNG icon and manifest parity, bundled-resource and canonical README parity, background transactions, recovery and extension lifecycle, settings limited to Iris, shared syntax/semantics, ANSI, opaque native fallback, and native/CSS floating-surface agreement |
-| `textmate_integration_test.py` | Actual Python, Markdown, JSON, YAML, and TOML colors in an isolated bat cache |
+| `textmate_integration_test.py` | Actual Python, Markdown, JSON, YAML, and TOML syntax categories against palette roles in an isolated bat cache |
 | `cli_adapters_test.py` | delta blame backgrounds, lsd/fd attribute precedence and icons, fzf option preservation, Zsh styles, and invalid-input failure before writes |
 | `lazygit_test.py` | A palette, shared icons and aliases, invalid-input failure before writes, native PTY/delta rendering, and isolated Snacks parent editing |
+
+Invalid-input checks call the build entry point with minimal temporary source
+files, while the Zsh check reads actual shell state for Python assertions. The
+lsd/fd fixture writes only the exports those consumers use.
 
 Integration coverage depends on tools available through `PATH`:
 
@@ -55,8 +59,9 @@ Build and compare the exports in an empty temporary directory:
 )
 ```
 
-The build produces 17 configuration resources and four `vscode/` delivery files;
-the Python suite checks this split and identical bat, Yazi, and Codex CLI XML.
+The build currently produces 17 configuration resources and four `vscode/`
+delivery files; the Python suite checks the VS Code files and identical bat,
+Yazi, and Codex CLI XML.
 `--check` compares each complete file against its
 expected bytes and returns nonzero for missing or different files. It ignores
 extra files in the destination.
@@ -138,7 +143,10 @@ later personal values and original backups.
 The extension tests run the shipped entry point and adapter with a controlled
 VS Code host. Each settings document has separate draft and disk contents;
 effective configuration and notifications advance only when explicitly delivered
-from saved contents. WorkspaceEdit preparation models the native active editor's
+from saved contents. Fixture operations explicitly edit drafts, save documents,
+or deliver configuration; saved-setting changes combine these steps. A shared
+test helper injects selected rename failures and restores the filesystem method.
+WorkspaceEdit preparation models the native active editor's
 minimization: unannotated empty edits disappear and lose their final version
 constraint, while metadata retains the constraint without changing text. Original
 edit counts determine the RPC result. Closing a document retains its old text

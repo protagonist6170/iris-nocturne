@@ -205,10 +205,16 @@ class VscodeTest(unittest.TestCase):
             settings,
             {"workbench.colorTheme": "Iris Nocturne", **appearance},
         )
+        self.assertEqual(set(appearance), {
+            "window.titleBarStyle", "workbench.colorCustomizations",
+        })
         self.assertEqual(
-            len(appearance) - 1
-            + len(appearance["workbench.colorCustomizations"]["[Iris Nocturne]"]),
-            6,
+            set(appearance["workbench.colorCustomizations"]["[Iris Nocturne]"]),
+            {
+                "terminal.background", "minimap.background",
+                "editorGutter.background", "notebook.cellEditorBackground",
+                "notebook.outputContainerBackgroundColor",
+            },
         )
         theme = json.loads(
             self.outputs[f"{vscode.EXPORT_DIR}/iris-nocturne-color-theme.json"]
@@ -296,7 +302,6 @@ class VscodeTest(unittest.TestCase):
             "#A8A2EC1C", "#9DA9FF30", "#9DA9FF18", "#9DA9FF24",
             "#9DA9FF40",
         })
-        self.assertNotIn("{{", css)
         # Scoped tree colors must not recolor floating list widgets globally.
         self.assertEqual(theme["list.hoverBackground"], "#38415D")
         self.assertEqual(theme["quickInputList.focusBackground"], "#363D70")

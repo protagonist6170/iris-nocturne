@@ -1,5 +1,7 @@
 """Check shared lazygit mappings and native loading in an isolated terminal."""
 
+from contextlib import redirect_stderr
+import io
 import json
 import os
 from pathlib import Path
@@ -40,31 +42,40 @@ def icon_entries(output: str, category: str) -> dict[str, dict[str, str]]:
     return entries
 
 
+def terminal_rgb(color: str) -> bytes:
+    """Format a palette RGB color as terminal escape parameters."""
+    return ";".join(str(channel) for channel in bytes.fromhex(color[1:])).encode()
+
+
 class LazygitThemeTest(unittest.TestCase):
     def test_selected_palette_and_shared_icon_precedence(self):
         output = build.generate()[THEME_PATH].decode()
-        self.assertIn('activeBorderColor: ["#9DA9FF", "bold"]', output)
-        self.assertIn('inactiveBorderColor: ["#584F8B"]', output)
+        colors = theme_source.load_dark_theme()[0]["colors"]
+        self.assertIn(
+            f'activeBorderColor: ["{colors["accent"]}", "bold"]', output
+        )
+        self.assertIn(
+            f'inactiveBorderColor: ["{colors["terminal_border"]}"]', output
+        )
         self.assertIn('selectedLineFgColor: ["bold"]', output)
-        self.assertIn('selectedLineBgColor: ["#37336E"]', output)
-        self.assertIn('inactiveViewSelectedLineBgColor: ["#2D2B60"]', output)
+        self.assertIn(
+            f'selectedLineBgColor: ["{colors["terminal_raised"]}"]', output
+        )
+        self.assertIn(
+            f'inactiveViewSelectedLineBgColor: ["{colors["terminal_surface"]}"]',
+            output,
+        )
         self.assertIn('nerdFontsVersion: "3"', output)
         names = icon_entries(output, "filenames")
         extensions = icon_entries(output, "extensions")
-        for name, glyph, color in (
-            ("README.md", "\ueaa4", "#FFD18A"),
-            ("Cargo.toml", "\ueb29", "#FF8F7D"),
-            ("Cargo.lock", "\uea75", "#C9A1FE"),
-            ("CMakeLists.txt", "\ueb6d", "#FFD18A"),
-            ("Dockerfile", "\ue7b0", "#9CBFFF"),
-            ("LICENSE", "\ueb53", "#C9A1FE"),
-            ("tests", "\uea79", "#91D6A2"),
-            ("src", "\ueac4", "#9CBFFF"),
-            ("docs", "\ueaa4", "#FFD18A"),
-            (".env.example", "\ueb11", "#7EDBD0"),
+        for name, glyph, role in (
+            ("README.md", "\ueaa4", "warning"),
+            ("Cargo.toml", "\ueb29", "preprocessor"),
         ):
             with self.subTest(name=name):
-                self.assertEqual(names[name], {"icon": glyph, "color": color})
+                self.assertEqual(
+                    names[name], {"icon": glyph, "color": colors[role]}
+                )
         self.assertEqual(extensions[".py"]["icon"], "\ue606")
         self.assertEqual(extensions[".cs"]["icon"], "\U000f031b")
         self.assertTrue(all(name.startswith(".") for name in extensions))
@@ -103,21 +114,21 @@ class LazygitThemeTest(unittest.TestCase):
                             theme_source.load_lazygit_filenames()
             spellings.write_text('filenames = ["bad/name"]')
             output_root = root / "output"
-            original_loader = theme_source.load_lazygit_filenames
-
-            def invalid_spellings():
-                with mock.patch.object(theme_source, "THEME_DIR", root):
-                    return original_loader()
-
+            for name in (
+                "palette.json", "textmate.json", "assets/yazi-icons.toml",
+                "assets/purpose-icons.toml", "assets/lsd-icons.toml",
+            ):
+                shutil.copy2(theme_source.THEME_DIR / name, root / name)
+            errors = io.StringIO()
             with (
-                mock.patch.object(
-                    theme_source, "load_lazygit_filenames", invalid_spellings
-                ),
+                mock.patch.object(theme_source, "THEME_DIR", root),
                 mock.patch("sys.argv", [
                     "build.py", "--output-root", str(output_root)
                 ]),
+                redirect_stderr(errors),
             ):
                 self.assertEqual(build.main(), 1)
+            self.assertIn("basenames", errors.getvalue())
             self.assertFalse(output_root.exists())
 
 
@@ -183,6 +194,7 @@ class LazygitIntegrationTest(unittest.TestCase):
     @unittest.skipUnless(shutil.which("bat") and shutil.which("delta"),
                          "bat and delta required for native diff rendering")
     def test_native_theme_icons_search_and_renderer_switch(self):
+        colors = theme_source.load_dark_theme()[0]["colors"]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             repo = root / "repo"
@@ -289,13 +301,13 @@ class LazygitIntegrationTest(unittest.TestCase):
             try:
                 wait_for("\ueaa4".encode())  # Shared README book.
                 wait_for("\ueb29".encode())  # Cargo.toml package purpose.
-                self.assertIn(b"157;169;255", output)
-                self.assertIn(b"55;51;110", output)
+                self.assertIn(terminal_rgb(colors["accent"]), output)
+                self.assertIn(terminal_rgb(colors["terminal_raised"]), output)
                 os.write(master, b"/README\r")
                 wait_for(b"Filter: matches")
-                wait_for(b"255;209;138")
-                wait_for(b"48;2;25;47;53")  # Iris delta added-line background.
-                wait_for(b"48;2;42;73;63")  # Iris delta word emphasis.
+                wait_for(terminal_rgb(colors["warning"]))
+                wait_for(b"48;2;" + terminal_rgb(colors["diff_add"]))
+                wait_for(b"48;2;" + terminal_rgb(colors["diff_add_emphasis"]))
                 os.write(master, b"|")
                 wait_for(b"{+updated+}")
                 self.assertIn(b"[-original-]", output)

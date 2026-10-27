@@ -1,20 +1,29 @@
 """Exercise exported CLI themes through their consumers in temporary homes."""
 
+from contextlib import redirect_stderr
+import io
 import os
 import pathlib
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import build
+import theme_source
+
+
+def terminal_rgb(color: str) -> str:
+    """Format a palette color as terminal RGB parameters."""
+    return ";".join(str(channel) for channel in bytes.fromhex(color[1:]))
 
 
 @unittest.skipUnless(shutil.which("delta"), "delta required")
 class DeltaBlameTest(unittest.TestCase):
     def test_blame_colors_cover_metadata_and_code(self):
+        colors = theme_source.load_dark_theme()[0]["colors"]
         fixture = (
             "a1111111 (Alex 2025-01-01 12:00:00 +0000 1) first\n"
             "b2222222 (Sam  2025-01-02 12:00:00 +0000 2) second\n"
@@ -45,11 +54,16 @@ class DeltaBlameTest(unittest.TestCase):
                 text=True,
                 check=True,
             )
-        for line, (rgb, content) in zip(
+        for line, (role, content) in zip(
             result.stdout.splitlines(),
-            [("45;43;96", "first"), ("52;58;98", "second"), ("59;50;91", "third")],
+            [
+                ("terminal_surface", "first"),
+                ("terminal_blame_cool", "second"),
+                ("terminal_blame_warm", "third"),
+            ],
         ):
             with self.subTest(content=content):
+                rgb = terminal_rgb(colors[role])
                 self.assertTrue(line.startswith(f"\x1b[48;2;{rgb}m"))
                 self.assertRegex(
                     line, rf"\x1b\[48;2;{rgb};38;2;[\d;]+m {content}"
@@ -65,12 +79,17 @@ class FileThemeTest(unittest.TestCase):
         self,
     ):
         outputs = build.generate()
+        colors = theme_source.load_dark_theme()[0]["colors"]
         with tempfile.TemporaryDirectory() as directory:
             home = pathlib.Path(directory)
-            for relative, data in outputs.items():
+            for relative in (
+                ".config/ls-colors/iris-nocturne.sh",
+                ".config/lsd/colors.yaml",
+                ".config/lsd/icons.yaml",
+            ):
                 target = home / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(data)
+                target.write_bytes(outputs[relative])
             (home / ".config/lsd/config.yaml").write_text(
                 "color:\n  theme: custom\n", encoding="utf-8"
             )
@@ -114,15 +133,15 @@ class FileThemeTest(unittest.TestCase):
                 re.sub(r"\x1b\[[0-9;]*m", "", line).split()[-1]: line
                 for line in result.stdout.splitlines()
             }
-            for name, rgb in {
-                "plain.py": "244;242;249",
-                "run.py": "145;214;162",
-                "picture.png": "255;143;125",
-                "link.png": "173;180;206",
-                "broken.png": "255;124;150",
+            for name, role in {
+                "plain.py": "foreground",
+                "run.py": "added",
+                "picture.png": "preprocessor",
+                "link.png": "comment",
+                "broken.png": "error",
             }.items():
                 with self.subTest(name=name):
-                    self.assertIn("38;2;" + rgb, lines[name])
+                    self.assertIn("38;2;" + terminal_rgb(colors[role]), lines[name])
             self.assertIn("\ue606", lines["plain.py"])
             self.assertIn("\ueaea", lines["picture.png"])
             self.assertIn("\ueaef", lines["archive.tar"])
@@ -148,7 +167,7 @@ class FileThemeTest(unittest.TestCase):
                     for line in result.stdout.splitlines()
                     if "broken.png" in line
                 )
-                self.assertIn("38;2;255;124;150", broken)
+                self.assertIn("38;2;" + terminal_rgb(colors["error"]), broken)
                 self.assertEqual(result.stderr, "")
 
 
@@ -157,33 +176,25 @@ class ExportValidationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             source = root / "source"
-            shutil.copytree(
-                pathlib.Path(build.__file__).parent,
-                source,
-                ignore=shutil.ignore_patterns(
-                    ".git", "dist", "__pycache__", ".ruff_cache"
-                ),
-            )
+            (source / "assets").mkdir(parents=True)
+            for name in ("palette.json", "textmate.json"):
+                shutil.copy2(theme_source.THEME_DIR / name, source / name)
             (source / "assets/yazi-icons.toml").write_text(
                 'files = [{ name = "bad", text = "two glyphs", '
                 'fg = "#123456" }]\n'
                 "exts = []\n",
                 encoding="utf-8",
             )
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "-B",
-                    str(source / "build.py"),
-                    "--output-root",
-                    str(root / "output"),
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(result.returncode, 1)
-            self.assertIn("single glyph", result.stderr)
+            errors = io.StringIO()
+            with (
+                mock.patch.object(theme_source, "THEME_DIR", source),
+                mock.patch(
+                    "sys.argv", ["build.py", "--output-root", str(root / "output")]
+                ),
+                redirect_stderr(errors),
+            ):
+                self.assertEqual(build.main(), 1)
+            self.assertIn("single glyph", errors.getvalue())
             self.assertFalse((root / "output").exists())
 
 
@@ -233,6 +244,7 @@ class FzfThemeTest(unittest.TestCase):
 class ZshThemeTest(unittest.TestCase):
     def test_fragment_handles_missing_plugin_and_existing_theme_prefixes(self):
         data = build.generate()[".config/zsh/themes/iris-nocturne.zsh"]
+        colors = theme_source.load_dark_theme()[0]["colors"]
         with tempfile.TemporaryDirectory() as directory:
             fragment = pathlib.Path(directory) / "theme.zsh"
             fragment.write_bytes(data)
@@ -243,30 +255,14 @@ class ZshThemeTest(unittest.TestCase):
                     "-c",
                     """
 source "$1"
-(( ! ${+FAST_HIGHLIGHT_STYLES} )) || exit 1
-[[ $ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE == 'fg=#6F789D' ]] || exit 2
+print -r -- "without_plugin.exists=${+FAST_HIGHLIGHT_STYLES}"
+print -r -- "without_plugin.suggestion=$ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE"
 typeset -gA FAST_HIGHLIGHT_STYLES=(customdefault none freedefault none)
 FAST_THEME_NAME=custom
 source "$1"
-[[ $FAST_THEME_NAME == custom ]] || exit 3
-[[ $FAST_HIGHLIGHT_STYLES[customcommand] == 'fg=#8F9FFF' ]] || exit 4
-[[ $FAST_HIGHLIGHT_STYLES[freecomment] == 'fg=#ADB4CE' ]] || exit 5
-[[ $FAST_HIGHLIGHT_STYLES[iris-nocturnedefault] == 'fg=#F4F2F9' ]] || exit 6
-[[ $FAST_HIGHLIGHT_STYLES[customsecondary] == iris-nocturne ]] || exit 7
-[[ $FAST_HIGHLIGHT_STYLES[customhere-string-text] == 'fg=#FF981F' ]] || exit 8
-[[ $FAST_HIGHLIGHT_STYLES[command] == 'fg=#8F9FFF' ]] || exit 9
-[[ $FAST_HIGHLIGHT_STYLES[customcase-condition] == 'fg=#FF981F' ]] || exit 10
-[[ $FAST_HIGHLIGHT_STYLES[customoptarg-string] == 'fg=#FF981F' ]] || exit 11
-[[ $FAST_HIGHLIGHT_STYLES[customoptarg-number] == 'fg=#7DD300' ]] || exit 12
-[[ $FAST_HIGHLIGHT_STYLES[iris-nocturnerecursive-base] == 'fg=#F4F2F9' ]] ||
-  exit 13
-for prefix in '' custom free iris-nocturne; do
-  for key in command builtin function alias suffix-alias global-alias \\
-      precommand hashed-command subcommand; do
-    [[ $FAST_HIGHLIGHT_STYLES[${prefix}${key}] == 'fg=#8F9FFF' ]] || exit 14
-  done
-  [[ $FAST_HIGHLIGHT_STYLES[${prefix}reserved-word] == 'fg=#C9A1FE' ]] || exit 15
-  [[ $FAST_HIGHLIGHT_STYLES[${prefix}path] == 'fg=#8ACFF5' ]] || exit 16
+print -r -- "with_plugin.theme=$FAST_THEME_NAME"
+for key in ${(ok)FAST_HIGHLIGHT_STYLES}; do
+  print -r -- "style.$key=${FAST_HIGHLIGHT_STYLES[$key]}"
 done
 """,
                     "test",
@@ -278,8 +274,40 @@ done
                 check=False,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result.stdout, "")
             self.assertEqual(result.stderr, "")
+            records = {}
+            for line in result.stdout.splitlines():
+                key, separator, value = line.partition("=")
+                self.assertTrue(separator and key, f"Invalid record: {line!r}")
+                self.assertNotIn(key, records, f"Duplicate record: {key}")
+                records[key] = value
+            self.assertEqual(records["without_plugin.exists"], "0")
+            self.assertEqual(
+                records["without_plugin.suggestion"], f'fg={colors["subtle"]}'
+            )
+            self.assertEqual(records["with_plugin.theme"], "custom")
+            self.assertEqual(records["style.customsecondary"], "iris-nocturne")
+            expected = {
+                "freecomment": "comment",
+                "iris-nocturnedefault": "foreground",
+                "customhere-string-text": "string",
+                "command": "function_reference",
+                "customcase-condition": "string",
+                "customoptarg-string": "string",
+                "customoptarg-number": "number",
+                "iris-nocturnerecursive-base": "foreground",
+            }
+            for prefix in ("", "custom", "free", "iris-nocturne"):
+                for key in (
+                    "command", "builtin", "function", "alias", "suffix-alias",
+                    "global-alias", "precommand", "hashed-command", "subcommand",
+                ):
+                    expected[prefix + key] = "function_reference"
+                expected[prefix + "reserved-word"] = "keyword"
+                expected[prefix + "path"] = "member"
+            for key, role in expected.items():
+                with self.subTest(key=key):
+                    self.assertEqual(records["style." + key], f"fg={colors[role]}")
             self.assertEqual(
                 list(pathlib.Path(directory).iterdir()), [fragment]
             )

@@ -8,6 +8,7 @@ const os = require('node:os');
 const vm = require('node:vm');
 const {createRequire} = require('node:module');
 const {Background, hash} = require('../assets/vscode/background');
+const {failRenames} = require('./helpers/filesystem.cjs');
 const appearance = require('../assets/vscode/managed-appearance.json');
 
 const BASE = '<html><head><meta http-equiv="Content-Security-Policy" content="style-src self unsafe-inline"/></head><body>original</body></html>';
@@ -92,7 +93,7 @@ async function fixture(t, theme = 'Iris Nocturne') {
     for (const key of shared) next[key] = app[key];
     const before = new Map(config);
     config.clear();
-    for (const [key, value] of Object.entries(next)) if (value !== undefined) Map.prototype.set.call(config, key, value);
+    for (const [key, value] of Object.entries(next)) if (value !== undefined) config.set(key, value);
     for (const key of new Set([...before.keys(), ...config.keys()])) {
       if (JSON.stringify(before.get(key)) !== JSON.stringify(config.get(key))) {
         for (const listener of listeners) listener({affectsConfiguration: (name) => name === key});
@@ -110,7 +111,7 @@ async function fixture(t, theme = 'Iris Nocturne') {
     document.isDirty = false;
     if (notify) deliverConfiguration();
   }
-  function set(key, value) {
+  function setSavedSetting(key, value) {
     const app = parse(application.disk);
     const scope = key === 'window.titleBarStyle' || key === 'workbench.settings.applyToAllProfiles' ||
       (app['workbench.settings.applyToAllProfiles'] ?? []).includes(key) ? application : profile;
@@ -118,10 +119,7 @@ async function fixture(t, theme = 'Iris Nocturne') {
     if (value === undefined) delete data[key]; else data[key] = value;
     edit(scope, JSON.stringify(data, null, 2));
     save(scope);
-    return config;
   }
-  config.set = set;
-  config.delete = (key) => { const exists = config.has(key); set(key, undefined); return exists; };
   deliverConfiguration();
   function openDocument(uri) {
     let document = documents.get(uri.toString());
@@ -219,7 +217,7 @@ async function fixture(t, theme = 'Iris Nocturne') {
         if (id !== 'workbench.action.selectTheme') return commands.get(id)?.();
         pickerCount++;
         if (picker) { const pending = picker; picker = undefined; pending.entered.resolve(); await pending.closed.promise; }
-        else { const theme = responses.has('theme') ? responses.get('theme') : 'Iris Nocturne'; if (theme) set('workbench.colorTheme', theme); }
+        else { const theme = responses.has('theme') ? responses.get('theme') : 'Iris Nocturne'; if (theme) setSavedSetting('workbench.colorTheme', theme); }
       },
     },
     window: {
@@ -249,13 +247,19 @@ async function fixture(t, theme = 'Iris Nocturne') {
   const background = new Background({workbench, identity: 'test:test', profile: context.globalStorageUri.fsPath, storage: context.globalStorageUri.fsPath});
   const command = (id) => commands.get('irisNocturne.' + id)();
   return {
-    root, config, messages, responses, background, workbench, settingsFile: profile.uri.fsPath,
+    root, config: {get: (key) => config.get(key), has: (key) => config.has(key)},
+    messages, responses, background, workbench, settingsFile: profile.uri.fsPath,
     get document() { return profile; },
-    activate, command, deliverConfiguration,
-    editSettings: (text) => edit(profile, text),
-    saveSettings: (notify = true) => { for (const document of new Set([application, profile])) if (document.isDirty) save(document, false); if (notify) deliverConfiguration(); },
+    activate, command, deliverConfiguration, setSavedSetting,
+    editDocument: edit,
+    saveSettings({notify = true} = {}) {
+      for (const document of new Set([application, profile])) {
+        if (document.isDirty) save(document, false);
+      }
+      if (notify) deliverConfiguration();
+    },
     async complete(id) { const result = await command(id); if (!result.pendingSave) return result; this.saveSettings(); return command(id); },
-    selectTheme: (theme) => set('workbench.colorTheme', theme),
+    selectTheme: (theme) => setSavedSetting('workbench.colorTheme', theme),
     get pickerCount() { return pickerCount; },
     get selectionCount() { return selectionCount; },
     focusSettings(document) { active = {document}; },
@@ -281,10 +285,10 @@ async function fixture(t, theme = 'Iris Nocturne') {
       t.after(() => { profileOpen = undefined; paused.resume.resolve(); });
       return {entered: paused.entered.promise, resume: () => paused.resume.resolve()};
     },
-    async separateApplicationSettings() {
+    async separateApplicationSettings(initialText = '{"window.titleBarStyle":"native"}') {
       const filename = path.join(root, 'application/settings.json');
       await fs.mkdir(path.dirname(filename), {recursive: true});
-      application = createDocument(filename, '{"window.titleBarStyle":"native"}');
+      application = createDocument(filename, initialText);
       await fs.writeFile(filename, application.disk);
       deliverConfiguration();
       return application;
@@ -350,7 +354,7 @@ test('draft, disk and effective configuration advance at separate explicit bound
   assert.equal(parse(f.document.getText())['window.titleBarStyle'], 'custom');
   assert.equal(await fs.readFile(f.settingsFile, 'utf8'), disk);
   assert.equal(f.config.has('window.titleBarStyle'), false);
-  f.saveSettings(false);
+  f.saveSettings({notify: false});
   assert.equal(f.document.isDirty, false);
   assert.equal(f.config.has('window.titleBarStyle'), false);
   assert.equal(await fs.readFile(f.workbench, 'utf8'), BASE);
@@ -367,7 +371,7 @@ test('a draft entered after application is never automatically saved or committe
   const gate = f.pauseUpdate('window.titleBarStyle', {afterWrite: true});
   const enabling = f.command('enableGradient');
   await gate.entered;
-  f.editSettings(f.document.getText().replace('{', '{\n"personalDraft":"not ready",'));
+  f.editDocument(f.document, f.document.getText().replace('{', '{\n"personalDraft":"not ready",'));
   gate.resume();
   assert.equal((await enabling).pendingSave, true);
   assert.equal(f.document.isDirty, true);
@@ -381,7 +385,7 @@ test('a draft entered after application is never automatically saved or committe
 
 test('an unsaved draft present before a command is preserved without starting a transaction', async (t) => {
   const f = await fixture(t);
-  f.editSettings('// unfinished\n' + f.document.getText());
+  f.editDocument(f.document, '// unfinished\n' + f.document.getText());
   const text = f.document.getText();
   const disk = await fs.readFile(f.settingsFile, 'utf8');
   await f.activate();
@@ -411,7 +415,7 @@ test('undoing and saving a reviewed draft lets a different command safely discar
   await f.activate();
   const before = f.document.getText();
   await f.command('enableGradient');
-  f.editSettings(before);
+  f.editDocument(f.document, before);
   f.saveSettings();
   assert.equal((await f.command('disableGradient')).gradient, false);
   await assert.rejects(fs.stat(f.background.journalFile), /ENOENT/);
@@ -427,7 +431,7 @@ test('version rejection is atomic across application and profile documents', asy
   const operation = f.command('enableGradient');
   const rejected = assert.rejects(operation, /Setting changed.*Retry/);
   await gate.entered;
-  f.editSettings('// latest\n' + f.document.getText());
+  f.editDocument(f.document, '// latest\n' + f.document.getText());
   gate.resume();
   await rejected;
   assert.equal(app.getText(), appBefore);
@@ -438,7 +442,7 @@ test('version rejection is atomic across application and profile documents', asy
 
 test('a delayed Restore preserves managed and other-theme edits made before application', async (t) => {
   const f = await fixture(t);
-  f.config.set('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
+  f.setSavedSetting('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
   await f.activate(); await f.complete('enableGradient');
   const gate = f.pauseUpdate('workbench.colorCustomizations');
   const restoring = f.command('restoreAppearance');
@@ -447,7 +451,7 @@ test('a delayed Restore preserves managed and other-theme edits made before appl
   const colors = structuredClone(f.config.get('workbench.colorCustomizations'));
   colors['[Iris Nocturne]']['terminal.background'] = '#abcdef';
   colors['[Another Theme]'] = {'editor.background': '#112233'};
-  f.config.set('workbench.colorCustomizations', colors);
+  f.setSavedSetting('workbench.colorCustomizations', colors);
   gate.resume(); await rejected;
   assert.deepEqual(f.config.get('workbench.colorCustomizations'), colors);
   assert.equal(f.pickerCount, 0);
@@ -473,14 +477,13 @@ test('focus on another settings.json cannot redirect explicitly selected resourc
 
 test('scope changes stop recovery instead of restoring profile values into shared application settings', async (t) => {
   const f = await fixture(t);
-  f.config.set('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
-  const app = await f.separateApplicationSettings();
-  app.text = '{"window.titleBarStyle":"native","workbench.colorCustomizations":{"[Iris Nocturne]":{"terminal.background":"#00000000"}}}';
-  app.disk = app.text; writeFileSync(app.uri.fsPath, app.disk);
+  f.setSavedSetting('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
+  const app = await f.separateApplicationSettings(
+    '{"window.titleBarStyle":"native","workbench.colorCustomizations":{"[Iris Nocturne]":{"terminal.background":"#00000000"}}}'
+  );
   await f.activate(); await f.complete('enableGradient');
-  app.text = JSON.stringify({...parse(app.text), 'workbench.settings.applyToAllProfiles': ['workbench.colorCustomizations']});
-  app.version++; app.isDirty = true;
-  f.saveSettings(false);
+  f.editDocument(app, JSON.stringify({...parse(app.text), 'workbench.settings.applyToAllProfiles': ['workbench.colorCustomizations']}));
+  f.saveSettings({notify: false});
   assert.equal(f.config.has('workbench.settings.applyToAllProfiles'), false, 'configuration delivery remains delayed');
   const disk = app.disk;
   const state = await fs.readFile(f.background.stateFile, 'utf8');
@@ -493,12 +496,12 @@ test('scope changes stop recovery instead of restoring profile values into share
 for (const edit of [undefined, '#abcdef']) {
   test(`Reapply restores ${edit ? 'the latest personal value' : 'the original value'} after manual reviews`, async (t) => {
     const f = await fixture(t);
-    f.config.set('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
+    f.setSavedSetting('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
     await f.activate(); await f.complete('enableGradient');
     if (edit) {
       const colors = structuredClone(f.config.get('workbench.colorCustomizations'));
       colors['[Iris Nocturne]']['terminal.background'] = edit;
-      f.config.set('workbench.colorCustomizations', colors);
+      f.setSavedSetting('workbench.colorCustomizations', colors);
     }
     await f.complete('reapplyBackground');
     await f.complete('disableGradient');
@@ -509,7 +512,7 @@ for (const edit of [undefined, '#abcdef']) {
 test('JSONC local edits preserve unrelated text, comments, escaped keys and trailing commas', async (t) => {
   const f = await fixture(t);
   const untouched = '"personal": {"url":"https://example.test/x,//y", "array":[1,{"quoted":"} ] ,"},],},';
-  f.editSettings(`// profile\n{\n /* comment */ ${untouched}\n "workbench.colorTheme":"Iris Nocturne",\n "window.\\u0074itleBarStyle" /* title */ : "native",\n "workbench.colorCustomizations":{"[Other Theme]":{"editor.background":"#112233"},},\n}`);
+  f.editDocument(f.document, `// profile\n{\n /* comment */ ${untouched}\n "workbench.colorTheme":"Iris Nocturne",\n "window.\\u0074itleBarStyle" /* title */ : "native",\n "workbench.colorCustomizations":{"[Other Theme]":{"editor.background":"#112233"},},\n}`);
   f.saveSettings();
   await f.activate(); await f.complete('enableGradient'); await f.complete('disableGradient');
   assert.ok(f.document.text.includes(untouched));
@@ -521,7 +524,7 @@ test('JSONC local edits preserve unrelated text, comments, escaped keys and trai
 for (const titleBar of [undefined, 'custom']) {
 test(`restarting binds recorded resources when application settings ${titleBar ? 'needed no edit' : 'were edited'}`, async (t) => {
   const f = await fixture(t);
-  if (titleBar) f.config.set('window.titleBarStyle', titleBar);
+  if (titleBar) f.setSavedSetting('window.titleBarStyle', titleBar);
   await f.activate(); await f.command('enableGradient');
   f.saveSettings();
   const selections = f.selectionCount;
@@ -577,7 +580,7 @@ test('an uncertain edit preserves drafts and rejects every automatic or explicit
   const operation = f.command('enableGradient');
   const rejected = assert.rejects(operation, /settings edit failed/);
   await gate.entered;
-  f.editSettings('// user draft\n' + f.document.text);
+  f.editDocument(f.document, '// user draft\n' + f.document.text);
   gate.resume(); await rejected;
   const text = f.document.text;
   const disk = await fs.readFile(f.settingsFile, 'utf8');
@@ -590,16 +593,10 @@ test('an uncertain edit preserves drafts and rejects every automatic or explicit
 });
 
 test('a later file-commit failure preserves saved user settings and original backups for retry', async (t) => {
-  const f = await fixture(t); f.config.set('window.titleBarStyle', 'native');
+  const f = await fixture(t); f.setSavedSetting('window.titleBarStyle', 'native');
   await f.activate(); await f.command('enableGradient'); f.saveSettings();
   const disk = f.document.disk;
-  const rename = fs.rename;
-  let denied = false;
-  fs.rename = async (from, to) => {
-    if (to === f.background.stateFile && !denied) { denied = true; throw new Error('state denied'); }
-    return rename(from, to);
-  };
-  t.after(() => { fs.rename = rename; });
+  failRenames(t, {destination: f.background.stateFile, message: 'state denied'});
   await assert.rejects(f.command('enableGradient'), /state denied/);
   assert.equal(await fs.readFile(f.workbench, 'utf8'), BASE);
   assert.equal(f.document.disk, disk);
@@ -638,8 +635,8 @@ test('older backups without a resource identity stop before editing any setting'
 
 test('zero-change Disable rejects an unsaved draft without losing the original backups', async (t) => {
   const f = await fixture(t);
-  f.config.set('window.titleBarStyle', 'native');
-  f.config.set('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
+  f.setSavedSetting('window.titleBarStyle', 'native');
+  f.setSavedSetting('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
   await f.activate(); await f.complete('enableGradient');
   const state = await fs.readFile(f.background.stateFile, 'utf8');
   const html = await fs.readFile(f.workbench, 'utf8');
@@ -647,7 +644,7 @@ test('zero-change Disable rejects an unsaved draft without losing the original b
   const draft = parse(f.document.text);
   delete draft['window.titleBarStyle'];
   delete draft['workbench.colorCustomizations'];
-  f.editSettings(JSON.stringify(draft));
+  f.editDocument(f.document, JSON.stringify(draft));
   const text = f.document.text;
   await assert.rejects(f.command('disableGradient'), /unsaved draft.*Retry/);
   assert.equal(await fs.readFile(f.background.stateFile, 'utf8'), state);
@@ -656,7 +653,7 @@ test('zero-change Disable rejects an unsaved draft without losing the original b
   assert.equal(f.document.text, text);
   assert.equal(f.document.isDirty, true);
   await assert.rejects(fs.stat(f.background.journalFile), /ENOENT/);
-  f.editSettings(disk); f.saveSettings();
+  f.editDocument(f.document, disk); f.saveSettings();
   await f.complete('disableGradient');
   assert.equal(f.config.get('window.titleBarStyle'), 'native');
   assert.deepEqual(f.config.get('workbench.colorCustomizations'), {'[Iris Nocturne]': {'terminal.background': '#123456'}});
@@ -665,7 +662,7 @@ test('zero-change Disable rejects an unsaved draft without losing the original b
 test('zero-change Enable requires saved resources even when its draft already has every target value', async (t) => {
   const f = await fixture(t); await f.activate();
   const disk = f.document.disk;
-  f.editSettings(JSON.stringify({'workbench.colorTheme': 'Iris Nocturne', ...appearance}));
+  f.editDocument(f.document, JSON.stringify({'workbench.colorTheme': 'Iris Nocturne', ...appearance}));
   const text = f.document.text;
   await assert.rejects(f.command('enableGradient'), /unsaved draft.*Retry/);
   assert.equal(f.document.disk, disk);
@@ -683,19 +680,16 @@ test('zero-change Enable requires saved resources even when its draft already ha
 
 test('re-running a review validates the scope of managed fields that needed no edit', async (t) => {
   const f = await fixture(t);
-  f.config.set('workbench.colorCustomizations', appearance['workbench.colorCustomizations']);
-  const app = await f.separateApplicationSettings();
-  app.text = JSON.stringify({'window.titleBarStyle': 'native',
-    'workbench.colorCustomizations': {'[Iris Nocturne]': {'terminal.background': '#abcdef'}}});
-  app.disk = app.text; writeFileSync(app.uri.fsPath, app.disk);
+  f.setSavedSetting('workbench.colorCustomizations', appearance['workbench.colorCustomizations']);
+  const app = await f.separateApplicationSettings(JSON.stringify({'window.titleBarStyle': 'native',
+    'workbench.colorCustomizations': {'[Iris Nocturne]': {'terminal.background': '#abcdef'}}}));
   await f.activate();
   assert.equal((await f.command('enableGradient')).pendingSave, true);
   const journal = await fs.readFile(f.background.journalFile, 'utf8');
   assert.deepEqual(JSON.parse(journal).changes.map((change) => change.key), ['window.titleBarStyle']);
   f.saveSettings();
-  app.text = JSON.stringify({...parse(app.text), 'workbench.settings.applyToAllProfiles': ['workbench.colorCustomizations']});
-  app.version++; app.isDirty = true;
-  f.saveSettings(false);
+  f.editDocument(app, JSON.stringify({...parse(app.text), 'workbench.settings.applyToAllProfiles': ['workbench.colorCustomizations']}));
+  f.saveSettings({notify: false});
   const appDisk = app.disk;
   const profileDisk = f.document.disk;
   await assert.rejects(f.command('enableGradient'), /Settings scope changed/);
@@ -721,16 +715,16 @@ for (const delta of ['empty', 'nonempty']) {
   test(`${delta} delta rejects an actual edit and Undo after planning even with identical text`, {timeout: 5000}, async (t) => {
     const f = await fixture(t); await f.activate();
     if (delta === 'empty') {
-      for (const [key, value] of Object.entries(appearance)) f.config.set(key, value);
+      for (const [key, value] of Object.entries(appearance)) f.setSavedSetting(key, value);
     }
     const text = f.document.disk;
     const gate = pauseFileIO(t, 'rename', f.background.journalFile);
     const enabling = assert.rejects(f.command('enableGradient'), /Setting changed.*Retry/);
     await gate.entered;
     const version = f.document.version;
-    f.editSettings('// transient user draft\n' + text);
+    f.editDocument(f.document, '// transient user draft\n' + text);
     assert.equal(f.document.isDirty, true);
-    f.editSettings(text);
+    f.editDocument(f.document, text);
     assert.equal(f.document.text, text);
     assert.equal(f.document.isDirty, false);
     assert.equal(f.document.version, version + 2, 'edit and Undo must both have occurred');
@@ -745,20 +739,20 @@ for (const delta of ['empty', 'nonempty']) {
 
 test('zero-delta Disable retains backups when skipped fields change after planning', {timeout: 5000}, async (t) => {
   const f = await fixture(t);
-  f.config.set('window.titleBarStyle', 'native');
-  f.config.set('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
+  f.setSavedSetting('window.titleBarStyle', 'native');
+  f.setSavedSetting('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
   await f.activate(); await f.complete('enableGradient');
   const iris = f.document.disk;
   const state = await fs.readFile(f.background.stateFile, 'utf8');
   const html = await fs.readFile(f.workbench, 'utf8');
   // All six saved user values differ from Iris, so this plan has no changes.
-  f.config.set('window.titleBarStyle', 'native');
-  f.config.set('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#abcdef'}});
+  f.setSavedSetting('window.titleBarStyle', 'native');
+  f.setSavedSetting('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#abcdef'}});
   const gate = pauseFileIO(t, 'rename', f.background.journalFile);
   const disabling = assert.rejects(f.command('disableGradient'), /Setting changed.*Retry/);
   await gate.entered;
   const version = f.document.version;
-  f.editSettings(iris); f.saveSettings();
+  f.editDocument(f.document, iris); f.saveSettings();
   assert.equal(f.document.text, iris);
   assert.equal(f.document.version, version + 1, 'Undo must change the observed version');
   assert.equal(f.document.isDirty, false);
@@ -773,7 +767,7 @@ test('zero-delta Disable retains backups when skipped fields change after planni
 
 test('Save cannot admit a previously unsaved Enable when no journal exists', {timeout: 5000}, async (t) => {
   const f = await fixture(t); await f.activate();
-  f.editSettings(JSON.stringify({'workbench.colorTheme': 'Iris Nocturne', ...appearance}));
+  f.editDocument(f.document, JSON.stringify({'workbench.colorTheme': 'Iris Nocturne', ...appearance}));
   const gate = pauseFileIO(t, 'readFile', f.background.journalFile);
   const enabling = assert.rejects(f.command('enableGradient'), /unsaved draft.*Retry/);
   await gate.entered;
@@ -794,7 +788,7 @@ test('Restore requested before Save cannot proceed after an earlier Enable consu
   const gate = pauseFileIO(t, 'readFile', f.background.journalFile);
   const enabling = f.command('enableGradient');
   await gate.entered;
-  f.editSettings('// personal draft\n' + f.document.text);
+  f.editDocument(f.document, '// personal draft\n' + f.document.text);
   const restoring = assert.rejects(f.command('restoreAppearance'), /unsaved draft.*Retry/);
   f.saveSettings();
   const disk = f.document.disk;
@@ -820,10 +814,9 @@ for (const edit of ['saved managed value', 'unsaved draft']) {
     const enabling = f.command('enableGradient');
     await gate.entered;
     const version = app.version;
-    if (edit === 'saved managed value') f.config.set('window.titleBarStyle', 'native');
+    if (edit === 'saved managed value') f.setSavedSetting('window.titleBarStyle', 'native');
     else {
-      app.text = '// later application draft\n' + app.text;
-      app.version++; app.isDirty = true;
+      f.editDocument(app, '// later application draft\n' + app.text);
     }
     assert.equal(app.version, version + 1);
     const text = app.text;
@@ -838,8 +831,8 @@ for (const edit of ['saved managed value', 'unsaved draft']) {
     assert.equal(app.isDirty, edit === 'unsaved draft');
     if (edit === 'saved managed value') {
       await assert.rejects(f.command('enableGradient'), /Setting changed after review/);
-      f.config.set('window.titleBarStyle', 'custom');
-    } else { app.text = disk; app.version++; app.isDirty = false; }
+      f.setSavedSetting('window.titleBarStyle', 'custom');
+    } else { f.editDocument(app, disk); }
     assert.equal((await f.command('enableGradient')).gradient, true);
     await f.complete('disableGradient');
     assert.equal(f.config.get('window.titleBarStyle'), 'native');
@@ -873,24 +866,24 @@ test('Save cannot admit Enable or Restore requested while an existing review was
 for (const unchanged of ['all settings', 'application routing settings']) {
   test(`native edit preparation retains the version of unchanged ${unchanged}`, {timeout: 5000}, async (t) => {
     const f = await fixture(t);
-    f.config.set('window.titleBarStyle', 'native');
-    f.config.set('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
+    f.setSavedSetting('window.titleBarStyle', 'native');
+    f.setSavedSetting('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#123456'}});
     const app = unchanged === 'application routing settings' ? await f.separateApplicationSettings() : f.document;
     await f.activate(); await f.complete('enableGradient');
     const iris = f.document.disk;
     const state = await fs.readFile(f.background.stateFile, 'utf8');
     const html = await fs.readFile(f.workbench, 'utf8');
-    f.config.set('window.titleBarStyle', 'native');
+    f.setSavedSetting('window.titleBarStyle', 'native');
     if (unchanged === 'all settings') {
-      f.config.set('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#abcdef'}});
+      f.setSavedSetting('workbench.colorCustomizations', {'[Iris Nocturne]': {'terminal.background': '#abcdef'}});
     }
     f.focusSettings(app);
     const gate = f.pauseEditPreparation();
     const disabling = assert.rejects(f.command('disableGradient'), /Setting changed.*Retry/);
     await gate.entered;
     const version = app.version;
-    if (unchanged === 'all settings') { f.editSettings(iris); f.saveSettings(); }
-    else f.config.set('window.titleBarStyle', 'custom');
+    if (unchanged === 'all settings') { f.editDocument(f.document, iris); f.saveSettings(); }
+    else f.setSavedSetting('window.titleBarStyle', 'custom');
     assert.equal(app.version, version + 1, 'the active model must change during native preparation');
     assert.equal(app.isDirty, false);
     const text = app.text;
@@ -975,7 +968,7 @@ test('saved review rejects a closed application model while preserving its reope
   assert.equal(await fs.readFile(f.background.journalFile, 'utf8'), journal);
   assert.equal(await fs.readFile(f.workbench, 'utf8'), BASE);
   // Undo the new draft, then a fresh command may finish the saved review.
-  next.text = disk; next.version++; next.isDirty = false;
+  f.editDocument(next, disk);
   assert.equal((await f.command('enableGradient')).gradient, true);
   await f.complete('disableGradient');
   assert.equal(f.config.get('window.titleBarStyle'), 'native');

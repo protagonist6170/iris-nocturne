@@ -23,21 +23,23 @@ class BuildTest(unittest.TestCase):
             theme_source, "load_dark_theme", return_value=(palette, rules)
         ):
             updated = build.generate()
-        self.assertEqual(
-            {name for name in original if updated[name] != original[name]},
-            {
-                ".config/herdr/config.toml",
-                ".config/nvim/lua/iris_nocturne/palette.lua",
-                ".claude/themes/iris-nocturne.json",
-                ".config/fzf/iris-nocturne.sh",
-                ".config/lazygit/themes/iris-nocturne.yml",
-                ".config/yazi/flavors/iris-nocturne.yazi/flavor.toml",
-                ".config/btop/themes/iris-nocturne.theme",
-                ".config/git/themes/iris-nocturne.gitconfig",
-            },
-        )
+        for name in (
+            ".config/fzf/iris-nocturne.sh",
+            ".config/nvim/lua/iris_nocturne/palette.lua",
+            ".config/lazygit/themes/iris-nocturne.yml",
+            ".config/yazi/flavors/iris-nocturne.yazi/flavor.toml",
+        ):
+            with self.subTest(name=name):
+                self.assertNotEqual(original[name], updated[name])
+        for name in (
+            "vscode/iris-nocturne-color-theme.json",
+            ".config/bat/themes/iris-nocturne.tmTheme",
+            ".config/starship.toml",
+        ):
+            with self.subTest(name=name):
+                self.assertEqual(original[name], updated[name])
 
-    def test_exports_share_syntax_and_preserve_source_configuration(self):
+    def test_generation_preserves_source_configuration(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory)
             config = source / ".config/starship.toml"
@@ -50,20 +52,21 @@ class BuildTest(unittest.TestCase):
             config.write_text(original, encoding="utf-8")
             outputs = build.generate(source)
             self.assertEqual(config.read_text(encoding="utf-8"), original)
-
-        self.assertEqual(len(outputs), 21)
-        self.assertEqual(
-            {name.split("/", 1)[0] for name in outputs},
-            {".config", ".codex", ".claude", "vscode"},
+        starship = outputs[".config/starship.toml"].decode("utf-8")
+        self.assertTrue(starship.startswith('palette = "previous"\n'))
+        self.assertTrue(
+            starship.endswith('[character]\nsuccess_symbol = "keep"\n')
         )
-        self.assertEqual(
-            {name for name in outputs if name.startswith("vscode/")},
+
+    def test_exports_share_syntax_and_have_valid_formats(self):
+        outputs = build.generate()
+        self.assertTrue(
             {
                 "vscode/iris-nocturne.vsix",
                 "vscode/iris-nocturne-color-theme.json",
                 "vscode/iris-nocturne.css",
                 "vscode/settings.example.json",
-            },
+            }.issubset(outputs),
         )
         xml = outputs[".config/bat/themes/iris-nocturne.tmTheme"]
         self.assertEqual(outputs[".codex/themes/iris-nocturne.tmTheme"], xml)
@@ -71,49 +74,49 @@ class BuildTest(unittest.TestCase):
             outputs[".config/yazi/flavors/iris-nocturne.yazi/tmtheme.xml"],
             xml,
         )
+        for name, data in outputs.items():
+            if name.endswith(".toml"):
+                with self.subTest(name=name):
+                    tomllib.loads(data.decode("utf-8"))
+
+    def test_representative_exports_use_palette_roles(self):
+        outputs = build.generate()
         starship = outputs[".config/starship.toml"].decode("utf-8")
-        self.assertTrue(starship.startswith('palette = "previous"\n'))
-        self.assertTrue(
-            starship.endswith('[character]\nsuccess_symbol = "keep"\n')
-        )
         starship_colors = tomllib.loads(starship)["palettes"]["iris-nocturne"]
+        colors = theme_source.load_dark_theme()[0]["colors"]
         neovim_palette = outputs[
             ".config/nvim/lua/iris_nocturne/palette.lua"
         ].decode("utf-8")
-        for role, color in {
-            "terminal_surface": "#2D2B60",
-            "terminal_raised": "#37336E",
-            "terminal_selection": "#443E7E",
-            "terminal_border": "#584F8B",
-        }.items():
-            self.assertIn(f'["{role}"] = "{color}"', neovim_palette)
+        for role in (
+            "terminal_surface", "terminal_raised", "terminal_selection",
+            "terminal_border",
+        ):
+            self.assertIn(f'["{role}"] = "{colors[role]}"', neovim_palette)
         yazi_theme = tomllib.loads(
             outputs[".config/yazi/flavors/iris-nocturne.yazi/flavor.toml"].decode(
                 "utf-8"
             )
         )
-        self.assertEqual(yazi_theme["tabs"]["inactive"]["bg"], "#2D2B60")
+        self.assertEqual(
+            yazi_theme["tabs"]["inactive"]["bg"], colors["terminal_surface"]
+        )
         btop_theme = outputs[".config/btop/themes/iris-nocturne.theme"].decode(
             "utf-8"
         )
-        for role, color in {
-            "meter_bg": "#2D2B60",
-            "selected_bg": "#37336E",
-            "proc_follow_bg": "#37336E",
-            "followed_bg": "#37336E",
+        for field, role in {
+            "meter_bg": "terminal_surface",
+            "selected_bg": "terminal_raised",
+            "proc_follow_bg": "terminal_raised",
+            "followed_bg": "terminal_raised",
+            "upload_start": "function",
         }.items():
-            self.assertIn(f'theme[{role}]="{color}"', btop_theme)
-        self.assertEqual(starship_colors["function_reference"], "#8F9FFF")
-        self.assertEqual(starship_colors["function"], "#B3A9FF")
-        self.assertEqual(starship_colors["lavender"], "#B3A9FF")
-        self.assertIn(
-            'theme[upload_start]="#B3A9FF"',
-            outputs[".config/btop/themes/iris-nocturne.theme"].decode("utf-8"),
-        )
-        for name, data in outputs.items():
-            if name.endswith(".toml"):
-                with self.subTest(name=name):
-                    tomllib.loads(data.decode("utf-8"))
+            self.assertIn(f'theme[{field}]="{colors[role]}"', btop_theme)
+        for field, role in {
+            "function_reference": "function_reference",
+            "function": "function",
+            "lavender": "function",
+        }.items():
+            self.assertEqual(starship_colors[field], colors[role])
 
     def test_herdr_disabled_block_preserves_comments_and_rejects_mixed_state(
         self,

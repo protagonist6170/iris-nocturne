@@ -47,42 +47,48 @@ class TextMateIntegrationTest(unittest.TestCase):
         cases = [
             ("python", 'def build(param=factory(key="text")):\n'
              '    return np.asarray(param, dtype=int), len(param), 2\n', [
-                 (1, "build", "#8F9FFF"), (1, "factory", "#8F9FFF"),
-                 (1, "param", "#EBA0AC"), (1, "key", "#EBA0AC"),
-                 (2, "asarray", "#8F9FFF"), (2, "len", "#8F9FFF"),
-                 (2, "dtype", "#EBA0AC"), (2, "int", "#C9A1FE"),
-                 (2, "param", "#F4F2F9"), (2, "return", "#C9A1FE"),
+                 (1, "build", "function_reference"),
+                 (1, "factory", "function_reference"),
+                 (1, "param", "parameter_reference"),
+                 (1, "key", "parameter_reference"),
+                 (2, "asarray", "function_reference"),
+                 (2, "len", "function_reference"),
+                 (2, "dtype", "parameter_reference"), (2, "int", "builtin_type"),
+                 # bat leaves these argument references at the default foreground.
+                 (2, "param", "foreground"), (2, "return", "keyword"),
              ]),
             ("python", (FIXTURES / "syntax.py").read_text(), [
                 # bat's grammar classifies self in this declaration as a parameter.
-                (2, "import", "#C9A1FE"), (10, "self", "#EBA0AC"),
-                (10, "int", "#C9A1FE"), (10, "nodes", "#EBA0AC"),
-                (11, "Return", "#7EDBD0"), (16, "for", "#C9A1FE"),
-                (17, "=", "#7EDBD0"), (17, ",", "#B1B6D0"),
-                (18, "if", "#C9A1FE"), (18, "not", "#C9A1FE"),
-                (18, "in", "#C9A1FE"), (18, "and", "#C9A1FE"),
-                (19, "try", "#C9A1FE"), (20, "self", "#FF7C96"),
-                (20, "+", "#7EDBD0"),
-                (20, "\\n", "#FF8F7D"), (24, "except", "#C9A1FE"),
-                (26, "finally", "#C9A1FE"), (32, "await", "#C9A1FE"),
+                (2, "import", "keyword"), (10, "self", "parameter_reference"),
+                (10, "int", "builtin_type"),
+                (10, "nodes", "parameter_reference"),
+                (11, "Return", "documentation"), (16, "for", "keyword"),
+                (17, "=", "operator"), (17, ",", "punctuation"),
+                (18, "if", "keyword"), (18, "not", "keyword"),
+                (18, "in", "keyword"), (18, "and", "keyword"),
+                (19, "try", "keyword"), (20, "self", "builtin_variable"),
+                (20, "+", "operator"),
+                (20, "\\n", "preprocessor"), (24, "except", "keyword"),
+                (26, "finally", "keyword"), (32, "await", "keyword"),
             ]),
             ("markdown", (FIXTURES / "syntax.md").read_text(), [
-                (1, "Syntax", "#9CBFFF"), (3, ">", "#EBA0AC"),
-                (5, "https", "#8ACFF5"), (6, "inline_code", "#FF981F"),
+                (1, "Syntax", "type"), (3, ">", "parameter_reference"),
+                (5, "https", "member"), (6, "inline_code", "string"),
             ]),
             ("json", (FIXTURES / "syntax.json").read_text(), [
-                (2, "enabled", "#8ACFF5"), (2, "true", "#D2B5FF"),
-                (3, "16", "#7DD300"), (4, "graph", "#FF981F"),
+                (2, "enabled", "field_reference"), (2, "true", "constant"),
+                (3, "16", "number"), (4, "graph", "string"),
             ]),
             ("yaml", (FIXTURES / "syntax.yaml").read_text(), [
-                (1, "defaults", "#8ACFF5"), (1, "base", "#FFD18A"),
-                (2, "true", "#D2B5FF"), (3, "16", "#7DD300"),
-                (4, "base", "#FFD18A"),
+                (1, "defaults", "field_reference"),
+                (1, "base", "namespace_reference"),
+                (2, "true", "constant"), (3, "16", "number"),
+                (4, "base", "namespace_reference"),
             ]),
             ("toml", (FIXTURES / "syntax.toml").read_text(), [
-                (1, "filter", "#FFD18A"), (2, "enabled", "#8ACFF5"),
-                (2, "=", "#7EDBD0"), (2, "true", "#D2B5FF"),
-                (3, "16", "#7DD300"), (4, "2026", "#7DD300"),
+                (1, "filter", "namespace_reference"), (2, "enabled", "field_reference"),
+                (2, "=", "operator"), (2, "true", "constant"),
+                (3, "16", "number"), (4, "2026", "number"),
             ]),
         ]
         with tempfile.TemporaryDirectory() as directory:
@@ -109,7 +115,7 @@ class TextMateIntegrationTest(unittest.TestCase):
                     capture_output=True,
                 )
                 lines = colored_lines(result.stdout)
-                for row, word, expected in checks:
+                for row, word, role in checks:
                     line, colors = lines[row - 1]
                     pattern = re.escape(word)
                     if word.isidentifier() or word.isdecimal():
@@ -121,7 +127,7 @@ class TextMateIntegrationTest(unittest.TestCase):
                                           word=word, column=match.start()):
                             self.assertEqual(
                                 set(colors[match.start():match.end()]),
-                                {expected},
+                                {palette["colors"][role]},
                             )
 
 

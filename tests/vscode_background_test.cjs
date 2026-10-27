@@ -7,6 +7,7 @@ const os = require('node:os');
 const {isDeepStrictEqual: equal} = require('node:util');
 const {pathToFileURL} = require('node:url');
 const {Background, hash, value} = require('../assets/vscode/background');
+const {failRenames} = require('./helpers/filesystem.cjs');
 const appearance = require('../assets/vscode/managed-appearance.json');
 const irisColorKeys = Object.keys(appearance['workbench.colorCustomizations']['[Iris Nocturne]']);
 
@@ -216,18 +217,14 @@ test('interrupted transactions recover conditionally; an active application lock
 test('an unstarted review whose first progress checkpoint failed can be safely discarded', async (t) => {
   const f = await fixture(t);
   const before = [...f.config];
-  const rename = fs.rename;
-  let denied = false;
-  fs.rename = async (from, to) => {
-    if (to === f.background.journalFile && !denied) {
+  failRenames(t, {
+    destination: f.background.journalFile,
+    message: 'start checkpoint denied',
+    when: async (from) => {
       const journal = JSON.parse(await fs.readFile(from, 'utf8'));
-      if (journal.changes.every((change) => change.progress === 'writing')) {
-        denied = true; throw new Error('start checkpoint denied');
-      }
-    }
-    return rename(from, to);
-  };
-  t.after(() => { fs.rename = rename; });
+      return journal.changes.every((change) => change.progress === 'writing');
+    },
+  });
   await assert.rejects(f.background.apply(), /start checkpoint denied/);
   assert.deepEqual([...f.config], before);
   await f.background.recover();
@@ -237,18 +234,14 @@ test('an unstarted review whose first progress checkpoint failed can be safely d
 
 test('failure to persist edit completion preserves the scene and blocks later recovery', async (t) => {
   const f = await fixture(t, {'window.titleBarStyle': 'native'});
-  const rename = fs.rename;
-  let denied = false;
-  fs.rename = async (from, to) => {
-    if (to === f.background.journalFile && !denied) {
+  failRenames(t, {
+    destination: f.background.journalFile,
+    message: 'completion checkpoint denied',
+    when: async (from) => {
       const journal = JSON.parse(await fs.readFile(from, 'utf8'));
-      if (journal.changes.every((change) => change.progress === 'written')) {
-        denied = true; throw new Error('completion checkpoint denied');
-      }
-    }
-    return rename(from, to);
-  };
-  t.after(() => { fs.rename = rename; });
+      return journal.changes.every((change) => change.progress === 'written');
+    },
+  });
   await assert.rejects(f.background.apply(), /completion checkpoint denied/);
   f.config.set('window.titleBarStyle', 'native');
   const snapshot = [...f.config];
@@ -278,15 +271,11 @@ test('partial file rollback retries never replay a settings undo or overwrite a 
   const f = await fixture(t, {'window.titleBarStyle': 'native', 'color:terminal.background': '#123456'});
   await complete(f.background, 'apply');
   await f.background.disable();
-  const rename = fs.rename;
-  let failures = 0;
-  fs.rename = async (from, to) => {
-    if (to === f.background.stateFile && failures < 2) {
-      failures++; throw new Error('state commit and rollback denied');
-    }
-    return rename(from, to);
-  };
-  t.after(() => { fs.rename = rename; });
+  failRenames(t, {
+    destination: f.background.stateFile,
+    message: 'state commit and rollback denied',
+    count: 2,
+  });
   await assert.rejects(f.background.disable(), /Recovery is incomplete/);
   const journal = JSON.parse(await fs.readFile(f.background.journalFile, 'utf8'));
   assert.equal(journal.rollback.html, true);
