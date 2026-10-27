@@ -28,7 +28,9 @@ def delta_feature(colors: dict[str, str]) -> str:
         "grep-line-number-style": c["subtle"],
         "grep-match-line-style": f"syntax {c['diff_add']}",
         "grep-match-word-style": f"syntax {c['diff_add_emphasis']}",
-        "blame-palette": " ".join((c["background"], c["surface"], c["raised"])),
+        "blame-palette": " ".join(
+            (c["terminal_surface"], c["terminal_blame_cool"], c["terminal_blame_warm"])
+        ),
     }
     lines = [
         "# Iris Nocturne dark. Install the bat TextMate theme first.",

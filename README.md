@@ -85,6 +85,8 @@ differences and how to extend the mappings.
 
 - [Application setup](docs/applications.md): installation, theme selection, and
   settings managed by each integration.
+- [VS Code](docs/vscode.md): theme installation, gradient management, and recovery.
+- [Ghostty gradient](assets/ghostty/README.md): background setup and restoration.
 - [CLI adapters](docs/cli-adapters.md): file colors, icons, fzf, and Zsh load order.
 - [Integration examples](docs/examples.md): configuration mirrors, Neovim module
   structure, and shell integration.

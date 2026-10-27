@@ -5,7 +5,24 @@ for i = 2, #arg do
   vim.opt.runtimepath:append(arg[i])
 end
 vim.opt.runtimepath:append(config .. "/after")
-require("iris_nocturne").load()
+local theme = require("iris_nocturne")
+for _, transparent in ipairs({ true, false }) do
+  theme.setup({ transparent = transparent })
+  theme.load()
+  local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
+  local split = vim.api.nvim_get_hl(0, { name = "NoiceSplit", link = false })
+  assert(split.bg == normal.bg, "NoiceSplit must follow Normal's background")
+  assert(transparent and normal.bg == nil or not transparent and normal.bg == 0x10112B)
+  for _, name in ipairs({
+    "NormalFloat", "LazyNormal", "MasonNormal", "FzfLuaNormal",
+    "FzfLuaPreviewNormal", "FzfLuaFzfNormal", "BlinkCmpDoc", "WhichKey",
+  }) do
+    assert(vim.api.nvim_get_hl(0, { name = name, link = false }).bg == 0x2D2B60, name)
+  end
+  for _, name in ipairs({ "LspReferenceText", "LspReferenceRead", "LspReferenceWrite" }) do
+    assert(vim.api.nvim_get_hl(0, { name = name, link = false }).bg == 0x443E7E, name)
+  end
+end
 
 local semantic = require("iris_nocturne.semantic")
 local expected = {

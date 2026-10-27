@@ -122,10 +122,31 @@ with a configuration copy and installed parser/query runtimes.
 
 ### Transparency and fallback themes
 
-Set transparency in local highlight and plugin configuration. For example, let
-text areas, statuslines, Noice prompts, and unselected completion entries inherit
-the terminal background while keeping selection, floating-window, search, and
-diff backgrounds. Clear only the background when retaining a title's text style.
+Set transparency in local highlight and plugin configuration. Text areas,
+statuslines, Noice prompts and message splits, and unselected completion entries
+can inherit the terminal background. Use opaque colors for floating windows,
+selections, search matches, and diffs so they remain legible over other content.
+Clear only the background when retaining a title's text style.
+
+The following mappings show the surface choices used by the local integration.
+Apply them after loading Iris, and again when it is reloaded. `Normal` should
+already be defined by the local theme, with no background in transparent mode:
+
+```lua
+local c = require("iris_nocturne.palette")
+vim.api.nvim_set_hl(0, "NormalFloat", { fg = c.foreground, bg = c.terminal_surface })
+vim.api.nvim_set_hl(0, "FloatBorder", { fg = c.terminal_border, bg = c.terminal_surface })
+vim.api.nvim_set_hl(0, "NoiceSplit", { link = "Normal" })
+```
+
+Noice maps its message and command-output splits to `NoiceSplit`; without an
+override, it links that group to `NormalFloat`. Linking it to `Normal` makes
+splits follow the normal window in both transparent and solid modes. Other
+Noice popup views can retain `NormalFloat` as an opaque surface. FzfLua and
+completion documentation can likewise use `NormalFloat` for their content and
+previews. Local mappings may also use `terminal_selection` for LSP references,
+`terminal_surface` for inactive buffer labels, and `terminal_raised` for the
+current line.
 
 Shared UI mappings can keep layouts consistent with a fallback such as
 Catppuccin. Let each theme load its own highlights, and check both after

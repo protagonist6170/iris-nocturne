@@ -48,7 +48,7 @@ def yazi_flavor(
         },
         "tabs": {
             "active": style("background", "type", bold=True),
-            "inactive": style("type", "raised"),
+            "inactive": style("type", "terminal_surface"),
         },
         "mode": {
             "normal_main": style("type", "reset", bold=True),

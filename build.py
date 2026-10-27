@@ -97,15 +97,26 @@ def generate(source_home: pathlib.Path | None = None) -> dict[str, bytes]:
             colors, ansi
         ),
         ".config/nvim/lua/iris_nocturne/palette.lua": neovim.neovim_palette(
-            colors | {"terminal_raised": palette["colors"]["terminal_raised"]},
+            colors
+            | {
+                role: palette["colors"][role]
+                for role in (
+                    "terminal_surface",
+                    "terminal_raised",
+                    "terminal_selection",
+                    "terminal_border",
+                )
+            },
             ansi,
         ),
         ".config/yazi/flavors/iris-nocturne.yazi/flavor.toml": (
-            yazi.yazi_flavor(colors, file_icons)
+            yazi.yazi_flavor(palette["colors"], file_icons)
         ),
-        ".config/btop/themes/iris-nocturne.theme": btop.btop_theme(colors),
+        ".config/btop/themes/iris-nocturne.theme": btop.btop_theme(
+            palette["colors"]
+        ),
         ".config/git/themes/iris-nocturne.gitconfig": delta.delta_feature(
-            colors
+            palette["colors"]
         ),
     }
     for relative, block in {

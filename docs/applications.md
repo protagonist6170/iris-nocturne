@@ -30,8 +30,9 @@ background overrides that remain in effect when changing themes.
 
 The export is a palette: `.config/nvim/lua/iris_nocturne/palette.lua`. Install it
 in your Neovim configuration and load it with `require("iris_nocturne.palette")`.
-It supplies shared semantic colors, ANSI colors, and `terminal_raised`
-(`#37336E`) for a `CursorLine` background consistent with Herdr's active row.
+It supplies shared semantic colors, ANSI colors, and terminal surface colors:
+`terminal_surface` (`#2D2B60`), `terminal_raised` (`#37336E`),
+`terminal_selection` (`#443E7E`), and `terminal_border` (`#584F8B`).
 
 Supply highlight groups, plugin mappings, semantic tokens, queries, loading, and
 transparency in your configuration. The palette is not a complete colorscheme.
@@ -92,7 +93,7 @@ and execute permissions use `warning`, `error`, and `added`; images, media,
 archives, and documents use `preprocessor`, `warning`, `constant`, and `added`.
 Tabs and table cells have explicit backgrounds, and selections use reversed
 styles. Confirmation bodies, shortcut-hint masks, and unselected menu entries
-leave the background unset.
+leave the background unset. Inactive tabs use `terminal_surface` (`#2D2B60`).
 
 Custom statusline code on Yazi 26.9 can read the generated
 `[iris-nocturne-status]` section as `th.iris_nocturne_status` at render time:
@@ -120,7 +121,10 @@ Lua code supplies the layout and fallback styles for other flavors.
 
 Install `.config/btop/themes/iris-nocturne.theme` under `themes/` in the btop
 configuration directory and select `color_theme = "iris-nocturne"`. Keep panel
-layout, transparency, and save-on-exit settings in your btop config.
+layout, transparency, and save-on-exit settings in your btop config. Meters
+use `terminal_surface` (`#2D2B60`), and selected or followed process rows use
+`terminal_raised` (`#37336E`). Set `theme_background = false` in btop's config
+to let its main area inherit the terminal background.
 
 ## delta
 
@@ -131,7 +135,10 @@ actual Git configuration layout.
 
 Context lines and hunk headers have no explicit background; headers include line
 numbers and syntax highlighting. Added/deleted lines use shared diff backgrounds,
-with bold word emphasis. Keep paging and feature selection in your Git config.
+with bold word emphasis. When blame output is sent through delta, it keeps delta's
+default whole-line grouping using `#2D2B60`, `#343A62`, and `#3B325B`. The
+colors repeat when more than three commits are displayed. Keep paging and
+feature selection in your Git config.
 
 ## lazygit
 
@@ -310,10 +317,10 @@ the base; `iris-nocturne` is not a built-in Herdr theme name.
 The sidebar inherits the terminal background through `sidebar_bg = "reset"`.
 Active rows, selections, menus, and other panels keep distinct backgrounds.
 
-Herdr and Claude Code use all four `terminal_*` roles: solid purple-blue surfaces
-that complement the terminal gradient. Neovim and fzf share `terminal_raised` for
-their current rows. lazygit also uses `terminal_surface` and `terminal_border`
-for inactive selections and panel borders; other exports exclude these roles.
+Herdr and Claude Code use the shared terminal surface roles, which complement
+the terminal gradient. Neovim, fzf, lazygit, Yazi, and btop also use these roles
+for selected rows, panels, or tabs. Delta uses `terminal_surface` and two
+additional colors for its blame groups.
 
 | Herdr token | Role and use |
 |---|---|

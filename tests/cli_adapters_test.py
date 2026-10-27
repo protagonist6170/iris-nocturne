@@ -12,6 +12,51 @@ import unittest
 import build
 
 
+@unittest.skipUnless(shutil.which("delta"), "delta required")
+class DeltaBlameTest(unittest.TestCase):
+    def test_blame_colors_cover_metadata_and_code(self):
+        fixture = (
+            "a1111111 (Alex 2025-01-01 12:00:00 +0000 1) first\n"
+            "b2222222 (Sam  2025-01-02 12:00:00 +0000 2) second\n"
+            "c3333333 (Lee  2025-01-03 12:00:00 +0000 3) third\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            home = pathlib.Path(directory)
+            config = home / ".gitconfig"
+            config.write_bytes(
+                build.generate()[".config/git/themes/iris-nocturne.gitconfig"]
+                + b"\n[delta]\n  features = iris-nocturne\n"
+            )
+            env = os.environ | {
+                "HOME": str(home),
+                "XDG_CONFIG_HOME": str(home),
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "TERM": "xterm-256color",
+                "COLORTERM": "truecolor",
+            }
+            env.pop("BAT_THEME", None)
+            env.pop("GIT_CONFIG_GLOBAL", None)
+            result = subprocess.run(
+                ["delta", "--paging=never", "--true-color=always", "--color-only"],
+                cwd=home,
+                env=env,
+                input=fixture,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        for line, (rgb, content) in zip(
+            result.stdout.splitlines(),
+            [("45;43;96", "first"), ("52;58;98", "second"), ("59;50;91", "third")],
+        ):
+            with self.subTest(content=content):
+                self.assertTrue(line.startswith(f"\x1b[48;2;{rgb}m"))
+                self.assertRegex(
+                    line, rf"\x1b\[48;2;{rgb};38;2;[\d;]+m {content}"
+                )
+        self.assertEqual(len(result.stdout.splitlines()), 3)
+
+
 @unittest.skipUnless(
     shutil.which("lsd") and shutil.which("zsh"), "lsd and zsh required"
 )

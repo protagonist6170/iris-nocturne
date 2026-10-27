@@ -31,6 +31,9 @@ class BuildTest(unittest.TestCase):
                 ".claude/themes/iris-nocturne.json",
                 ".config/fzf/iris-nocturne.sh",
                 ".config/lazygit/themes/iris-nocturne.yml",
+                ".config/yazi/flavors/iris-nocturne.yazi/flavor.toml",
+                ".config/btop/themes/iris-nocturne.theme",
+                ".config/git/themes/iris-nocturne.gitconfig",
             },
         )
 
@@ -74,6 +77,32 @@ class BuildTest(unittest.TestCase):
             starship.endswith('[character]\nsuccess_symbol = "keep"\n')
         )
         starship_colors = tomllib.loads(starship)["palettes"]["iris-nocturne"]
+        neovim_palette = outputs[
+            ".config/nvim/lua/iris_nocturne/palette.lua"
+        ].decode("utf-8")
+        for role, color in {
+            "terminal_surface": "#2D2B60",
+            "terminal_raised": "#37336E",
+            "terminal_selection": "#443E7E",
+            "terminal_border": "#584F8B",
+        }.items():
+            self.assertIn(f'["{role}"] = "{color}"', neovim_palette)
+        yazi_theme = tomllib.loads(
+            outputs[".config/yazi/flavors/iris-nocturne.yazi/flavor.toml"].decode(
+                "utf-8"
+            )
+        )
+        self.assertEqual(yazi_theme["tabs"]["inactive"]["bg"], "#2D2B60")
+        btop_theme = outputs[".config/btop/themes/iris-nocturne.theme"].decode(
+            "utf-8"
+        )
+        for role, color in {
+            "meter_bg": "#2D2B60",
+            "selected_bg": "#37336E",
+            "proc_follow_bg": "#37336E",
+            "followed_bg": "#37336E",
+        }.items():
+            self.assertIn(f'theme[{role}]="{color}"', btop_theme)
         self.assertEqual(starship_colors["function_reference"], "#8F9FFF")
         self.assertEqual(starship_colors["function"], "#B3A9FF")
         self.assertEqual(starship_colors["lavender"], "#B3A9FF")

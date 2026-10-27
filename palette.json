@@ -21,6 +21,8 @@
     "terminal_raised": "#37336E",
     "terminal_selection": "#443E7E",
     "terminal_border": "#584F8B",
+    "terminal_blame_cool": "#343A62",
+    "terminal_blame_warm": "#3B325B",
     "foreground": "#F4F2F9",
     "muted": "#B1B6D0",
     "comment": "#ADB4CE",

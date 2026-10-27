@@ -18,10 +18,10 @@ python3 -B -m unittest discover -s tests -p '*_test.py' -v
 |---|---|
 | `theme_source_test.py` | Color values, ANSI palette, and syntax input validation |
 | `syntax_test.py` | TextMate rule order, category colors, and explicit empty font styles |
-| `build_test.py` | All 21 exports, shared XML, terminal-role isolation, and configuration preservation |
+| `build_test.py` | All 21 exports, shared XML, terminal-role isolation, CLI surface colors, and configuration preservation |
 | `vscode_test.py` | Reproducible VSIX and local runtime, 256-pixel PNG icon and manifest parity, bundled-resource and canonical README parity, background transactions, recovery and extension lifecycle, settings limited to Iris, shared syntax/semantics, ANSI, opaque native fallback, and native/CSS floating-surface agreement |
 | `textmate_integration_test.py` | Actual Python, Markdown, JSON, YAML, and TOML colors in an isolated bat cache |
-| `cli_adapters_test.py` | lsd/fd attribute precedence and icons, fzf option preservation, Zsh styles, and invalid-input failure before writes |
+| `cli_adapters_test.py` | delta blame backgrounds, lsd/fd attribute precedence and icons, fzf option preservation, Zsh styles, and invalid-input failure before writes |
 | `lazygit_test.py` | A palette, shared icons and aliases, invalid-input failure before writes, native PTY/delta rendering, and isolated Snacks parent editing |
 
 Integration coverage depends on tools available through `PATH`:
@@ -30,6 +30,7 @@ Integration coverage depends on tools available through `PATH`:
 |---|---|
 | Node.js | Skip background transaction/recovery checks; native theme and package checks still run |
 | bat | Skip actual TextMate color checks |
+| delta | Skip the standalone blame-rendering check |
 | lsd and zsh | Skip file-state and icon integration checks if either is missing |
 | fd | Omit fd checks within the file-tool test; the rest of that test still runs |
 | fzf and zsh | Skip fzf option integration checks if either is missing |
@@ -332,7 +333,9 @@ removed after inspection, and reports and screenshots go only to `--output`.
 
 `tests/neovim_test.lua` checks highlights, Tree-sitter capture colors, semantic
 classification, and completion kinds in a complete local integration. It checks
-Function/Method colors separately from Event, constructors, macros, and decorators.
+the Noice split, opaque float and plugin surfaces, and LSP reference backgrounds
+with transparency both enabled and disabled. It checks Function/Method colors
+separately from Event, constructors, macros, and decorators.
 Include the [completion mappings](examples.md#semantic-roles-and-queries) in your
 configuration copy.
 
@@ -364,8 +367,9 @@ Follow the [module layout](examples.md#neovim) and replace these placeholder pat
 
 The command loads the script and supplied modules/queries without running your
 `init.lua` or plugin manager. It tests semantic-token logic without starting a
-language server. Supply the complete configuration and runtimes before running;
-the script does not install them.
+language server. The highlight checks read the loaded groups; they do not open
+Noice, FzfLua, or other plugin windows. Supply the complete configuration and
+runtimes before running; the script does not install them.
 
 ## Visual review
 
@@ -376,14 +380,14 @@ changing integration settings, review the relevant applications:
 |---|---|
 | Ghostty | Foreground, cursor, selection, ANSI colors, and optional static background |
 | VS Code | D gradients, split focus, primary/secondary/panel tree states and Sticky Scroll, drag targets, editor Sticky Scroll, multi-file Diff, opaque settings/modal/Peek/widgets, terminal Sticky Scroll and Notebook; repeat with CSS disabled |
-| Neovim | Text, syntax, active/inactive statuslines, plugin interfaces, transparency, and switching to/from the fallback theme |
-| Yazi and lsd | Directory and language icons, file categories, symlinks, executable states, and Yazi statusline mode colors |
+| Neovim | Text and syntax; transparent message splits, opaque floating surfaces, reference highlights, statuslines, and switching to/from the fallback theme |
+| Yazi and lsd | Directory and language icons, file categories, symlinks, executable states, Yazi inactive tabs, and statusline mode colors |
 | fzf and fzf-tab | Matches, current row, multi-selection, previews, and colored completion filenames |
 | Zsh | Actual command-line highlighting and autosuggestions |
-| bat and delta | Rendered code and diffs |
+| bat and delta | Rendered code and diffs; delta blame's whole-line commit colors |
 | lazygit | A borders/selected rows, preserved status foregrounds, shared icons and case aliases, search and commit markers, narrow/split diff views, delta/rawGit switching, and Snacks editor return |
 | Starship | Prompt colors with the existing module layout |
-| btop and Herdr | Panel layers, active states, and transparency |
+| btop and Herdr | Panel layers, btop meters and selected rows, active states, and transparency |
 | Codex CLI and Claude Code | Theme selection and the syntax/interface areas each format supports |
 
 Check glyphs with your actual Nerd Font and terminal. For isolated shell review,
